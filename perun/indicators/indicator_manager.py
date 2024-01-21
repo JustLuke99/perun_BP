@@ -57,6 +57,9 @@ class IndicatorsManager:
 
         for parser_file in parser_files:
             module_name = os.path.splitext(parser_file)[0]
+            if "__init__" in module_name:
+                continue
+
             module_path = f"{self.parsers_directory}.{module_name}"
 
             try:
@@ -93,7 +96,7 @@ class IndicatorsManager:
                 }
             )
 
-    def parse(self, root_directory: str, ignore_files: list=[], ignore_folders: list=[]) -> None:
+    def parse(self, root_directory: str, ignore_files: list = [], ignore_folders: list = []) -> None:
         """
         Parses code files in the specified root directory using loaded parsers.
 
@@ -117,14 +120,15 @@ class IndicatorsManager:
                     file += ".bin"
 
                 if not (
-                    any(file.endswith(ext) for ext in self.supported_languages)
-                    or any(x in file for x in ignore_files)
+                        any(file.endswith(ext) for ext in self.supported_languages)
+                        or any(x in file for x in ignore_files)
                 ):
                     continue
 
+                parser_data = []
                 for code_parser in self.parsers:
                     if not any(
-                        file.endswith(ext) for ext in code_parser["supported_languages"]
+                            file.endswith(ext) for ext in code_parser["supported_languages"]
                     ):
                         continue
 
@@ -137,14 +141,16 @@ class IndicatorsManager:
                         print(f"File: {os.path.join(directory_name, file)}: {e}")
                         continue
 
-                    self.data.append(
-                        {
-                            "file_path": os.path.join(directory_name, file),
-                            "file_type": file.rsplit(".")[-1],
-                            "parser_name": code_parser["parser_name"],
-                            "data": data,
-                        }
-                    )
+                    parser_data.append({"parser_name":code_parser["parser_name"],
+                                        "data":data})
+
+                self.data.append(
+                    {
+                        "file_path": os.path.join(directory_name, file),
+                        "file_type": file.rsplit(".")[-1],
+                        "data": parser_data,
+                    }
+                )
 
 
 if __name__ == "__main__":
@@ -161,5 +167,3 @@ if __name__ == "__main__":
     print("Size of data: ", sys.getsizeof(parser.data))
     print("Time taken: ", datetime.now() - start_time)
     print(fiLES)
-
-

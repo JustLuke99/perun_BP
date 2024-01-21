@@ -12,7 +12,8 @@ from radon.metrics import (
     mi_compute,
 )
 
-from code_parsers.lizard_parser import BaseParser
+from perun.indicators.abstract.base_parser import BaseParser
+
 
 Data = TypedDict(
     "Data",

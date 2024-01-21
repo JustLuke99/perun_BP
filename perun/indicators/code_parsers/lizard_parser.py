@@ -1,4 +1,4 @@
-from Indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_parser import BaseParser
 import lizard
 import os
 from typing import TypedDict, List, Dict, Tuple

@@ -183,7 +183,7 @@ source = [
     "perun",
 ]
 omit = [
-    "tests/*",
+    "tests/*"
     "perun/collect/trace/*",
     "perun/thirdparty/*"
 ]

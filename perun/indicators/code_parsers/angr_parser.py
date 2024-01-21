@@ -1,4 +1,5 @@
-from Indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_parser import BaseParser
+from perun.collect.trace.optimizations.resources import manager
 import magic
 
 
@@ -20,4 +21,6 @@ class AngrParser(BaseParser):
         if not _is_executable(file_path):
             raise Exception("Not executable, skipping.")
 
+        data = manager.extract(file_path)
+        print("")
         # TODO add angr
