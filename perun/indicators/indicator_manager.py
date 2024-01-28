@@ -2,6 +2,8 @@ import importlib
 import os
 from datetime import datetime
 import sys
+from perun.logic.stats import add_stats
+import magic
 
 
 class IndicatorsManager:
@@ -20,9 +22,10 @@ class IndicatorsManager:
         "supported_languages",
         "data",
         "loaded_parsers",
+        "vcs_version",
     ]
 
-    def __init__(self, load_parsers: bool = False):
+    def __init__(self, vsc_version: str, load_parsers: bool = False):
         """
         Initializes a new instance of the CodeParserManager class.
 
@@ -34,12 +37,68 @@ class IndicatorsManager:
         self.parsers = []
         self.supported_languages = []
         self.data = []
-        self.loaded_parsers = False
+        self.vcs_version = vsc_version
         # maybe change to True?
-        if load_parsers:
-            self.load_indicators()
 
-    def load_indicators(self) -> None:
+        self._load_indicators()
+
+    def parse(
+        self, root_directory: str, ignore_files: list = [], ignore_folders: list = []
+    ) -> None:
+        """
+        Parses code files in the specified root directory using loaded parsers.
+
+        Parameters:
+        - root_directory (str): The root directory to start parsing from.
+        - ignore_files (list): A list of file names to ignore during parsing.
+        - ignore_folders (list): A list of folder names to ignore during parsing.
+
+        Returns:
+        - None
+        """
+        for directory_name, _, files in os.walk(root_directory):
+            if any(x in directory_name for x in ignore_folders):
+                continue
+
+            for file in files:
+                if not self._has_extension(file):
+                    if not self._is_executable(os.path.join(directory_name, file)):
+                        continue
+                    file += ".bin"
+
+                if not (
+                    any(file.endswith(ext) for ext in self.supported_languages)
+                    or any(x in file for x in ignore_files)
+                ):
+                    continue
+
+                parser_data = []
+                for code_parser in self.parsers:
+                    if not any(file.endswith(ext) for ext in code_parser["supported_languages"]):
+                        continue
+
+                    file = file.replace(".bin", "")
+                    try:
+                        data = code_parser["class"].parse(
+                            file_path=os.path.join(directory_name, file)
+                        )
+                    except Exception as e:
+                        print(f"File: {os.path.join(directory_name, file)}: {e}")
+                        continue
+
+                    parser_data.append({"parser_name": code_parser["parser_name"], "data": data})
+
+                self.data.append(
+                    {
+                        "file_path": os.path.join(directory_name, file.replace(".bin", "")),
+                        "file_type": file.rsplit(".")[-1],
+                        "data": parser_data,
+                    }
+                )
+
+        self._save_data()
+
+    def _load_indicators(self) -> None:
         """
         Loads code parsers from the specified directory and updates supported_languages.
 
@@ -49,11 +108,7 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        self.loaded_parsers = True
-
-        parser_files = [
-            f for f in os.listdir(self.parsers_directory) if f.endswith(".py")
-        ]
+        parser_files = [f for f in os.listdir(self.parsers_directory) if f.endswith(".py")]
 
         for parser_file in parser_files:
             module_name = os.path.splitext(parser_file)[0]
@@ -67,22 +122,22 @@ class IndicatorsManager:
             except Exception as e:
                 raise AttributeError(f"Cant import module from file {parser_file}. {e}")
 
-            classes = [
-                cls for cls in dir(module) if isinstance(getattr(module, cls), type)
-            ]
+            classes = [cls for cls in dir(module) if isinstance(getattr(module, cls), type)]
 
             if not classes:
                 raise AttributeError(f"File {parser_file} doesnt have class.")
 
-            parse_class = [classX for classX in classes if classX != "BaseParser" and "parser" in classX.lower()]
+            parse_class = [
+                classX
+                for classX in classes
+                if classX != "BaseParser" and "parser" in classX.lower()
+            ]
 
             parser_class = getattr(module, parse_class[0])
             try:
                 supported_languages = parser_class().get_languages()
             except Exception as e:
-                raise NotImplementedError(
-                    f"In {parser_file} is missing get_languages()"
-                )
+                raise NotImplementedError(f"In {parser_file} is missing get_languages()")
 
             for language in supported_languages:
                 if language not in self.supported_languages:
@@ -92,65 +147,44 @@ class IndicatorsManager:
                 {
                     "class": parser_class(),
                     "supported_languages": parser_class().get_languages(),
-                    "parser_name": parse_class[0]
+                    "parser_name": parse_class[0],
                 }
             )
 
-    def parse(self, root_directory: str, ignore_files: list = [], ignore_folders: list = []) -> None:
+    def _save_data(self):
         """
-        Parses code files in the specified root directory using loaded parsers.
+        Saves parsed indicator data using the add_stats function.
+
+        The parsed indicator data is stored under the filename "indicator_data" with the specified VCS version.
 
         Parameters:
-        - root_directory (str): The root directory to start parsing from.
-        - ignore_files (list): A list of file names to ignore during parsing.
-        - ignore_folders (list): A list of folder names to ignore during parsing.
+        - None
 
         Returns:
         - None
         """
-        if not self.loaded_parsers:
-            self.load_indicators()
+        add_stats("indicator_data", [self.vcs_version], self.data)
 
-        for directory_name, _, files in os.walk(root_directory):
-            if any(x in directory_name for x in ignore_folders):
-                continue
+    def _has_extension(self, file_path):
+        """
+        Checks if the file at the given path has any extension.
 
-            for file in files:
-                if "." not in file:
-                    file += ".bin"
+        Parameters:
+        - file_path (str): The path to the file.
 
-                if not (
-                        any(file.endswith(ext) for ext in self.supported_languages)
-                        or any(x in file for x in ignore_files)
-                ):
-                    continue
+        Returns:
+        - bool: True if the file has any extension, False otherwise.
+        """
+        _, file_extension = os.path.splitext(file_path)
+        return bool(file_extension)
 
-                parser_data = []
-                for code_parser in self.parsers:
-                    if not any(
-                            file.endswith(ext) for ext in code_parser["supported_languages"]
-                    ):
-                        continue
+    def _is_executable(self, file_path: str) -> bool:
+        def get_file_type(file_path: str):
+            mime = magic.Magic()
+            file_type = mime.from_file(file_path)
+            return file_type
 
-                    try:
-                        _ = file.rsplit(".")[1]
-                        data = code_parser["class"].parse(
-                            file_path=os.path.join(directory_name, file)
-                        )
-                    except Exception as e:
-                        print(f"File: {os.path.join(directory_name, file)}: {e}")
-                        continue
-
-                    parser_data.append({"parser_name":code_parser["parser_name"],
-                                        "data":data})
-
-                self.data.append(
-                    {
-                        "file_path": os.path.join(directory_name, file),
-                        "file_type": file.rsplit(".")[-1],
-                        "data": parser_data,
-                    }
-                )
+        return True if "executable" in get_file_type(file_path.replace(".bin", "")) else False
 
 
 if __name__ == "__main__":
@@ -159,11 +193,9 @@ if __name__ == "__main__":
     IGNORE_FILES = []
     # FOLDER = "test_files"
     FOLDER = "./test_files/"
-    parser = IndicatorsManager(load_parsers=False)
-    parser.load_indicators()
-    fiLES = parser.parse(
-        FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS
-    )
+    # pro každou verzi vcs je potřeba znovu vytvořit IndicatorsManager(...)
+    parser = IndicatorsManager(vsc_version="nějaký hash nebo něco", load_parsers=False)
+    fiLES = parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
     print("Size of data: ", sys.getsizeof(parser.data))
     print("Time taken: ", datetime.now() - start_time)
     print(fiLES)
