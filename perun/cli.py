@@ -75,7 +75,7 @@ import perun.fuzz.factory as fuzz
 import perun.postprocess
 import perun.profile.helpers as profiles
 import perun.view
-
+from perun.indicators.indicator_manager import test_indicator_manager
 
 DEV_MODE = False
 
@@ -1174,6 +1174,11 @@ def fuzz_cmd(cmd: str, args: str, **kwargs: Any) -> None:
     """Performs fuzzing for the specified command according to the initial sample of workload."""
     kwargs["executable"] = Executable(cmd, args)
     fuzz.run_fuzzing_for_command(**kwargs)
+
+
+@cli.command()
+def test_indicator():
+    test_indicator_manager()
 
 
 def init_unit_commands(lazy_init: bool = True) -> None:

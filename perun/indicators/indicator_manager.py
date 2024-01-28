@@ -187,7 +187,7 @@ class IndicatorsManager:
         return True if "executable" in get_file_type(file_path.replace(".bin", "")) else False
 
 
-if __name__ == "__main__":
+def test_indicator_manager():
     start_time = datetime.now()
     IGNORE_FOLDERS = ["venv", "idea"]
     IGNORE_FILES = []
