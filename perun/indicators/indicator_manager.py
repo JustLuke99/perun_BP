@@ -56,6 +56,8 @@ class IndicatorsManager:
         Returns:
         - None
         """
+        root_directory = "/home/luke/PycharmProjects/perun_BP/perun/indicators/test_files"
+
         for directory_name, _, files in os.walk(root_directory):
             if any(x in directory_name for x in ignore_folders):
                 continue
@@ -68,7 +70,7 @@ class IndicatorsManager:
 
                 if not (
                     any(file.endswith(ext) for ext in self.supported_languages)
-                    or any(x in file for x in ignore_files)
+                    and not any(x in file for x in ignore_files)
                 ):
                     continue
 
@@ -108,7 +110,7 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        parser_files = ['lizard_parser.py', 'radon_parser.py', 'ast_parser.py', 'angr_parser.py']
+        parser_files = ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"]
 
         for parser_file in parser_files:
             module_name = os.path.splitext(parser_file)[0]
@@ -190,7 +192,7 @@ class IndicatorsManager:
 def test_indicator_manager():
     start_time = datetime.now()
     IGNORE_FOLDERS = ["venv", "idea"]
-    IGNORE_FILES = []
+    IGNORE_FILES = ["meson.build"]
     FOLDER = "./test_files/"
     # pro každou verzi vcs je potřeba znovu vytvořit IndicatorsManager(...)
     parser = IndicatorsManager(vsc_version="123ABC", load_parsers=False)

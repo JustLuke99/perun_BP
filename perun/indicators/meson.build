@@ -12,4 +12,5 @@ py3.install_sources(
 
 subdir('abstract')
 subdir('code_parsers')
+subdir('test_files')
 

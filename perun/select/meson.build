@@ -4,6 +4,7 @@ perun_select_files = files(
     '__init__.py',
     'abstract_base_selection.py',
     'whole_repository_selection.py'
+    'better_repository_selection.py'
 )
 
 py3.install_sources(
