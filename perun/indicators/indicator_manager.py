@@ -108,14 +108,14 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        parser_files = [f for f in os.listdir(self.parsers_directory) if f.endswith(".py")]
+        parser_files = ['lizard_parser.py', 'radon_parser.py', 'ast_parser.py', 'angr_parser.py']
 
         for parser_file in parser_files:
             module_name = os.path.splitext(parser_file)[0]
             if "__init__" in module_name:
                 continue
 
-            module_path = f"{self.parsers_directory}.{module_name}"
+            module_path = f"perun.indicators.code_parsers.{module_name}"
 
             try:
                 module = importlib.import_module(module_path)
@@ -191,11 +191,12 @@ def test_indicator_manager():
     start_time = datetime.now()
     IGNORE_FOLDERS = ["venv", "idea"]
     IGNORE_FILES = []
-    # FOLDER = "test_files"
     FOLDER = "./test_files/"
     # pro každou verzi vcs je potřeba znovu vytvořit IndicatorsManager(...)
-    parser = IndicatorsManager(vsc_version="nějaký hash nebo něco", load_parsers=False)
+    parser = IndicatorsManager(vsc_version="123ABC", load_parsers=False)
     fiLES = parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
     print("Size of data: ", sys.getsizeof(parser.data))
     print("Time taken: ", datetime.now() - start_time)
     print(fiLES)
+
+test_indicator_manager()
