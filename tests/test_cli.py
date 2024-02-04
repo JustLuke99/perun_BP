@@ -18,8 +18,7 @@ import perun.cli_groups.utils_cli as utils_cli
 import perun.cli_groups.config_cli as config_cli
 import perun.cli_groups.run_cli as run_cli
 import perun.cli_groups.check_cli as check_cli
-import perun.utils as utils
-import perun.utils.helpers as helpers
+from perun.utils.common import common_kit
 import perun.utils.log as log
 import perun.logic.config as config
 import perun.logic.temp as temp
@@ -29,6 +28,7 @@ import perun.check.factory as check
 import perun.vcs as vcs
 import perun.logic.pcs as pcs
 
+from perun.utils.external import commands
 from perun.utils.structs import CollectStatus, RunnerReport
 
 import perun.testing.asserts as asserts
@@ -913,10 +913,9 @@ def test_reg_analysis_incorrect(pcs_single_prof):
     # Instantiate the runner fist
     runner = CliRunner()
 
-    # Test the lack of arguments
+    # Test the lack of arguments passes with defaults
     result = runner.invoke(cli.postprocessby, ["0@i", "regression-analysis"])
-    asserts.predicate_from_cli(result, result.exit_code == 2)
-    asserts.predicate_from_cli(result, "Usage" in result.output)
+    asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Test non-existing argument
     result = runner.invoke(cli.postprocessby, ["0@i", "regression-analysis", "-f"])
@@ -1239,7 +1238,7 @@ def test_init_correct_with_edit(monkeypatch):
     def donothing(*_):
         pass
 
-    monkeypatch.setattr("perun.utils.run_external_command", donothing)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", donothing)
     result = runner.invoke(cli.init, [dst, "--vcs-type=git", "--configure"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
@@ -1256,7 +1255,7 @@ def test_init_correct_with_incorrect_edit(monkeypatch):
     def raiseexc(*_):
         raise exceptions.ExternalEditorErrorException("", "")
 
-    monkeypatch.setattr("perun.utils.run_external_command", raiseexc)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", raiseexc)
     result = runner.invoke(cli.init, [dst, "--vcs-type=git", "--configure"])
     asserts.predicate_from_cli(result, result.exit_code == 1)
     monkeypatch.undo()
@@ -1423,7 +1422,7 @@ def test_show_help(pcs_with_root):
     result = runner.invoke(cli.show, ["--help"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
     asserts.predicate_from_cli(result, "bars" in result.output)
-    asserts.predicate_from_cli(result, "raw" in result.output)
+    asserts.predicate_from_cli(result, "tableof" in result.output)
 
 
 def test_add_massaged_head(pcs_full_no_prof, valid_profile_pool):
@@ -1617,33 +1616,35 @@ def test_postprocess_tag(pcs_single_prof, valid_profile_pool):
     assert len(list(filter(test_utils.index_filter, os.listdir(pending_dir)))) == 2
 
     runner = CliRunner()
-    result = runner.invoke(cli.postprocessby, ["0@p", "normalizer"])
+    result = runner.invoke(cli.postprocessby, ["0@p", "regression-analysis", "-dp", "time"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
     assert len(list(filter(test_utils.index_filter, os.listdir(pending_dir)))) == 3
 
     # Try incorrect tag -> expect failure and return code 2 (click error)
-    result = runner.invoke(cli.postprocessby, ["666@p", "normalizer"])
+    result = runner.invoke(cli.postprocessby, ["666@p", "regression-analysis"])
     asserts.predicate_from_cli(result, result.exit_code == 2)
     assert len(list(filter(test_utils.index_filter, os.listdir(pending_dir)))) == 3
 
     # Try correct index tag
-    result = runner.invoke(cli.postprocessby, ["0@i", "normalizer"])
+    result = runner.invoke(cli.postprocessby, ["0@i", "regression-analysis"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
     assert len(list(filter(test_utils.index_filter, os.listdir(pending_dir)))) == 4
 
     # Try incorrect index tag -> expect failure and return code 2 (click error)
-    result = runner.invoke(cli.postprocessby, ["1337@i", "normalizer"])
+    result = runner.invoke(cli.postprocessby, ["1337@i", "regression-analysis"])
     asserts.predicate_from_cli(result, result.exit_code == 2)
     assert len(list(filter(test_utils.index_filter, os.listdir(pending_dir)))) == 4
 
     # Try absolute postprocessing
-    first_in_jobs = list(filter(test_utils.index_filter, os.listdir(pending_dir)))[0]
+    first_in_jobs = sorted(list(filter(test_utils.index_filter, os.listdir(pending_dir))))[0]
     absolute_first_in_jobs = os.path.join(pending_dir, first_in_jobs)
-    result = runner.invoke(cli.postprocessby, [absolute_first_in_jobs, "normalizer"])
+    result = runner.invoke(
+        cli.postprocessby, [absolute_first_in_jobs, "regression-analysis", "-dp", "time"]
+    )
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try lookup postprocessing
-    result = runner.invoke(cli.postprocessby, [first_in_jobs, "normalizer"])
+    result = runner.invoke(cli.postprocessby, [first_in_jobs, "regression-analysis", "-dp", "time"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
 
@@ -1656,43 +1657,45 @@ def test_show_tag(pcs_single_prof, valid_profile_pool, monkeypatch):
     pending_dir = os.path.join(pcs_single_prof.get_path(), "jobs")
 
     runner = CliRunner()
-    result = runner.invoke(cli.show, ["0@p", "raw"])
+    result = runner.invoke(cli.show, ["0@p", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try incorrect tag -> expect failure and return code 2 (click error)
-    result = runner.invoke(cli.show, ["1337@p", "raw"])
+    result = runner.invoke(cli.show, ["1337@p", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 2)
 
     # Try correct index tag
-    result = runner.invoke(cli.show, ["0@i", "raw"])
+    result = runner.invoke(cli.show, ["0@i", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try incorrect index tag
-    result = runner.invoke(cli.show, ["666@i", "raw"])
+    result = runner.invoke(cli.show, ["666@i", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 2)
 
     # Try absolute showing
     first_in_jobs = list(filter(test_utils.index_filter, os.listdir(pending_dir)))[0]
     absolute_first_in_jobs = os.path.join(pending_dir, first_in_jobs)
-    result = runner.invoke(cli.show, [absolute_first_in_jobs, "raw"])
+    result = runner.invoke(cli.show, [absolute_first_in_jobs, "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try lookup showing
-    result = runner.invoke(cli.show, [first_in_jobs, "raw"])
+    result = runner.invoke(cli.show, [first_in_jobs, "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try iterating through files
     monkeypatch.setattr("click.confirm", lambda *_: True)
-    result = runner.invoke(cli.show, ["prof", "raw"])
+    result = runner.invoke(cli.show, ["prof", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     # Try iterating through files, but none is confirmed to be true
     monkeypatch.setattr("click.confirm", lambda *_: False)
-    result = runner.invoke(cli.show, ["prof", "raw"])
+    result = runner.invoke(cli.show, ["prof", "tableof", "resources"])
     asserts.predicate_from_cli(result, result.exit_code == 1)
 
     # Try getting something from index
-    result = runner.invoke(cli.show, ["prof-2-complexity-2017-03-20-21-40-42.perf", "raw"])
+    result = runner.invoke(
+        cli.show, ["prof-2-complexity-2017-03-20-21-40-42.perf", "tableof", "resources"]
+    )
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
 
@@ -1728,7 +1731,7 @@ def test_config(pcs_with_root, monkeypatch):
     def donothing(*_):
         pass
 
-    monkeypatch.setattr("perun.utils.run_external_command", donothing)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", donothing)
     result = runner.invoke(config_cli.config, ["--local", "edit"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
@@ -1738,7 +1741,7 @@ def test_config(pcs_with_root, monkeypatch):
     def raiseexc(*_):
         raise exceptions.ExternalEditorErrorException
 
-    monkeypatch.setattr("perun.utils.run_external_command", raiseexc)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", raiseexc)
     result = runner.invoke(config_cli.config, ["--local", "edit"])
     asserts.predicate_from_cli(result, result.exit_code == 1)
 
@@ -1861,7 +1864,7 @@ def test_check_head(pcs_with_degradations, monkeypatch):
     # Try to sink it to black hole
     log_dir = pcs_with_degradations.get_log_directory()
     shutil.rmtree(log_dir)
-    helpers.touch_dir(log_dir)
+    common_kit.touch_dir(log_dir)
     config.runtime().data["degradation"] = {
         "collect_before_check": "true",
         "log_collect": "false",
@@ -1873,7 +1876,7 @@ def test_check_head(pcs_with_degradations, monkeypatch):
     # First lets clear all the objects
     object_dir = pcs_with_degradations.get_object_directory()
     shutil.rmtree(object_dir)
-    helpers.touch_dir(object_dir)
+    common_kit.touch_dir(object_dir)
     # Clear the pre_collect_profiles cache
     check.pre_collect_profiles.minor_version_cache.clear()
     assert len(os.listdir(object_dir)) == 0
@@ -1918,8 +1921,8 @@ def test_utils_create(monkeypatch, tmpdir):
     """Tests creating stuff in the perun"""
     # Prepare different directory
     monkeypatch.setattr(
-        "perun.utils.script_helpers.__file__",
-        os.path.join(str(tmpdir), "utils", "script_helpers.py"),
+        "perun.utils.common.script_kit.__file__",
+        os.path.join(str(tmpdir), "utils", "script_kit.py"),
     )
     monkeypatch.chdir(str(tmpdir))
 
@@ -1972,14 +1975,14 @@ def test_utils_create(monkeypatch, tmpdir):
     def donothing(*_):
         pass
 
-    monkeypatch.setattr("perun.utils.run_external_command", donothing)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", donothing)
     result = runner.invoke(utils_cli.create, ["check", "mydifferentcheck"])
     asserts.predicate_from_cli(result, result.exit_code == 0)
 
     def raiseexc(*_):
         raise exceptions.ExternalEditorErrorException
 
-    monkeypatch.setattr("perun.utils.run_external_command", raiseexc)
+    monkeypatch.setattr("perun.utils.external.commands.run_external_command", raiseexc)
     result = runner.invoke(utils_cli.create, ["check", "mythirdcheck"])
     asserts.predicate_from_cli(result, result.exit_code == 1)
 
@@ -2055,7 +2058,7 @@ def test_run(pcs_with_root, monkeypatch):
     assert len(job_profiles) >= 3
 
     # Run the matrix with error in prerun phase
-    saved_func = utils.run_safely_external_command
+    saved_func = commands.run_safely_external_command
 
     def run_wrapper(cmd):
         if cmd == 'ls | grep "."':
@@ -2063,7 +2066,7 @@ def test_run(pcs_with_root, monkeypatch):
         else:
             return saved_func(cmd)
 
-    monkeypatch.setattr("perun.utils.run_safely_external_command", run_wrapper)
+    monkeypatch.setattr("perun.utils.external.commands.run_safely_external_command", run_wrapper)
     matrix.data["execute"]["pre_run"].append("ls | grep dafad")
     result = runner.invoke(run_cli.run, ["matrix"])
     asserts.predicate_from_cli(result, result.exit_code == 1)
@@ -2315,10 +2318,10 @@ def test_stats(pcs_full_no_prof):
     os.makedirs(os.path.join(stats_dir, root_dir))
     os.makedirs(os.path.join(stats_dir, stats_custom_dir))
     os.mkdir(os.path.join(stats_dir, head_custom_dir))
-    helpers.touch_file(os.path.join(stats_dir, root_custom))
+    common_kit.touch_file(os.path.join(stats_dir, root_custom))
     with open(os.path.join(stats_dir, root_custom), "w+") as f_handle:
         f_handle.write("Some custom data")
-    helpers.touch_file(os.path.join(stats_dir, head_custom))
+    common_kit.touch_file(os.path.join(stats_dir, head_custom))
 
     # Test the list functions on populated stats directory and some custom objects
     result = runner.invoke(utils_cli.stats_list_files, [])

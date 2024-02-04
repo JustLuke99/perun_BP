@@ -7,14 +7,17 @@ by its path.
 from __future__ import annotations
 
 # Standard Imports
+from typing import Optional
 import os
 
 # Third-Party Imports
 
 # Perun Imports
 from perun.logic import config
-from perun.utils import helpers, decorators
+from perun.utils import decorators, log
+from perun.utils.common import common_kit
 from perun.utils.exceptions import NotPerunRepositoryException
+from perun.select import whole_repository_selection, abstract_base_selection
 
 
 def get_safe_path(default: str) -> str:
@@ -39,7 +42,7 @@ def get_path() -> str:
     :return: string path where the perun instance is located
     :raises NotPerunRepositoryException: when we cannot locate perun on the current directory tree
     """
-    return os.path.join(helpers.locate_perun_dir_on(os.getcwd()), ".perun")
+    return os.path.join(common_kit.locate_perun_dir_on(os.getcwd()), ".perun")
 
 
 @decorators.singleton
@@ -88,7 +91,7 @@ def get_object_directory() -> str:
     :returns str: directory, where the objects are stored
     """
     object_directory = os.path.join(get_path(), "objects")
-    helpers.touch_dir(object_directory)
+    common_kit.touch_dir(object_directory)
     return object_directory
 
 
@@ -99,7 +102,7 @@ def get_log_directory() -> str:
     :return str: directory, where logs are stored
     """
     logs_directory = os.path.join(get_path(), "logs")
-    helpers.touch_dir(logs_directory)
+    common_kit.touch_dir(logs_directory)
     return logs_directory
 
 
@@ -110,7 +113,7 @@ def get_job_directory() -> str:
     :returns str: directory, where job outputs are stored
     """
     jobs_directory = os.path.join(get_path(), "jobs")
-    helpers.touch_dir(jobs_directory)
+    common_kit.touch_dir(jobs_directory)
     return jobs_directory
 
 
@@ -131,7 +134,7 @@ def get_stats_directory() -> str:
     :return str: path to the statistics directory
     """
     stats_directory = os.path.join(get_path(), "stats")
-    helpers.touch_dir(stats_directory)
+    common_kit.touch_dir(stats_directory)
     return stats_directory
 
 
@@ -152,7 +155,7 @@ def get_tmp_directory() -> str:
     :return str: path to the tmp directory
     """
     tmp_directory = os.path.join(get_path(), "tmp")
-    helpers.touch_dir(tmp_directory)
+    common_kit.touch_dir(tmp_directory)
     return tmp_directory
 
 
@@ -176,3 +179,28 @@ def get_config_file(config_type: str) -> str:
     if config_type in ("shared", "global"):
         return os.path.join(config.lookup_shared_config_dir(), "shared.yml")
     return os.path.join(get_path(), "local.yml")
+
+
+@decorators.singleton_with_args
+def selection(
+    selection_type: Optional[str] = None,
+) -> abstract_base_selection.AbstractBaseSelection:
+    """Factory method for creating selection method
+
+    Currently, supports:
+      1. Whole Repository Selection: selects everything in the repository
+    """
+    if selection_type is None:
+        selection_type = config.lookup_key_recursively(
+            "selection_method", "whole_repository_selection"
+        )
+
+    if selection_type == "whole_repository_selection":
+        return whole_repository_selection.WholeRepositorySelection()
+
+    log.error(
+        f"'{selection_type}' is unsupported selection method. \n"
+        f"Choose one of ('whole_repository_selection')."
+    )
+    # Note, that in reality nothing is returned, this is only for typing check
+    return whole_repository_selection.WholeRepositorySelection()

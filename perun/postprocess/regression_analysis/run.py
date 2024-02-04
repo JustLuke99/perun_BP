@@ -11,7 +11,8 @@ import click
 from perun.logic import runner
 from perun.postprocess.regression_analysis import data_provider, methods, regression_models, tools
 from perun.profile.factory import pass_profile, Profile
-from perun.utils import cli_helpers, metrics
+from perun.utils import metrics
+from perun.utils.common import cli_kit
 from perun.utils.structs import PostprocessStatus
 
 
@@ -82,9 +83,12 @@ def store_model_counts(analysis: list[dict[str, Any]]) -> None:
     "--method",
     "-m",
     type=click.Choice(methods.get_supported_param_methods()),
-    required=True,
+    default="full",
     multiple=False,
-    help="Will use the <method> to find the best fitting models for the given profile.",
+    help=(
+        "Will use the <method> to find the best fitting models for the given profile. "
+        "By default 'full' computation will be performed"
+    ),
 )
 @click.option(
     "--regression_models",
@@ -116,7 +120,7 @@ def store_model_counts(analysis: list[dict[str, Any]]) -> None:
     default="structure-unit-size",
     nargs=1,
     metavar="<depending_on>",
-    callback=cli_helpers.process_resource_key_param,
+    callback=cli_kit.process_resource_key_param,
     help="Sets the key that will be used as a source of independent variable.",
 )
 @click.option(
@@ -126,7 +130,7 @@ def store_model_counts(analysis: list[dict[str, Any]]) -> None:
     nargs=1,
     metavar="<of_resource_key>",
     default="amount",
-    callback=cli_helpers.process_resource_key_param,
+    callback=cli_kit.process_resource_key_param,
     help="Sets key for which we are finding the model.",
 )
 @pass_profile
@@ -191,10 +195,6 @@ def regression_analysis(profile: Profile, **kwargs: Any) -> None:
             "model": "linear",
             "method": "full",
         }
-
-    Note that if your data are not suitable for regression analysis, check out
-    :ref:`postprocessors-clusterizer` to postprocess your profile to be
-    analysable by this analysis.
 
     For more details about regression analysis refer to
     :ref:`postprocessors-regression-analysis`. For more details how to collect

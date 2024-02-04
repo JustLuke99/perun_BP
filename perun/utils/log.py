@@ -20,8 +20,9 @@ import numpy as np
 import termcolor
 
 # Perun Imports
-from perun.utils import helpers, decorators
-from perun.utils.helpers import (
+from perun.utils import decorators
+from perun.utils.common import common_kit
+from perun.utils.common.common_kit import (
     COLLECT_PHASE_ATTRS,
     DEGRADATION_ICON,
     OPTIMIZATION_ICON,
@@ -241,7 +242,7 @@ def print_current_phase(phase_msg: str, phase_unit: str, phase_colour: ColorChoi
 
     :param str phase_msg: message that will be printed to the output
     :param str phase_unit: additional parameter that is passed to the phase_msg
-    :param str phase_colour: phase colour defined in helpers.py
+    :param str phase_colour: phase colour defined in common_kit.py
     """
     print(in_color(phase_msg.format(in_color(phase_unit)), phase_colour, COLLECT_PHASE_ATTRS))
 
@@ -296,6 +297,15 @@ def failed(ending: str = "\n") -> None:
     """
     print("[", end="")
     cprint("FAILED", "red", attrs=["bold"])
+    print("]", end=ending)
+
+
+def skipped(ending: str = "\n") -> None:
+    """
+    :param str ending: end of the string, by default new line
+    """
+    print("[", end="")
+    cprint("skip", "grey", attrs=["bold"])
     print("]", end=ending)
 
 
@@ -402,11 +412,11 @@ def print_short_summary_of_degradations(
     counts = count_degradations_per_group(degradation_list)
 
     print_short_change_string(counts)
-    optimization_count = helpers.str_to_plural(
+    optimization_count = common_kit.str_to_plural(
         counts.get("Optimization", 0) + counts.get("SevereOptimization", 0),
         "optimization",
     )
-    degradation_count = helpers.str_to_plural(
+    degradation_count = common_kit.str_to_plural(
         counts.get("Degradation", 0) + counts.get("SevereDegradation", 0), "degradation"
     )
     print(f"{optimization_count}({OPTIMIZATION_ICON}), {degradation_count}({DEGRADATION_ICON})")
@@ -445,7 +455,7 @@ def print_short_change_string(counts: dict[str, int]) -> None:
     :param dict counts: dictionary mapping found string changes into their counts
     """
     overall_changes = sum(counts.values())
-    print(helpers.str_to_plural(overall_changes, "change"), end="")
+    print(common_kit.str_to_plural(overall_changes, "change"), end="")
     if overall_changes > 0:
         change_string = change_counts_to_string(counts)
         print(f" | {change_string}", end="")
@@ -543,6 +553,9 @@ def print_list_of_degradations(
     :param list degradation_list: list of found degradations
     :param str model_strategy: detection model strategy for obtains the relevant kind of models
     """
+    if not degradation_list:
+        info("no changes found")
+        return
 
     def keygetter(item: tuple[DegradationInfo, str, str]) -> str:
         """Returns the location of the degradation from the tuple
@@ -698,7 +711,7 @@ def print_elapsed_time(func: Callable[..., Any]) -> Callable[..., Any]:
 def scan_formatting_string(
     fmt: str,
     default_fmt_callback: Callable[[str], str],
-    callback: Callable[[str], str] = helpers.identity,
+    callback: Callable[[str], str] = common_kit.identity,
     sep: str = "%",
 ) -> list[tuple[str, str]]:
     """Scans the string, parses delimited formatting tokens and transforms them w.r.t callbacks
@@ -732,6 +745,30 @@ def scan_formatting_string(
 
     # TODO: Add check if there is i % 2 == 1 at the end
     return tokens
+
+
+def format_file_size(size: Optional[float]) -> str:
+    """Format file size in Bytes into a fixed-length output so that it can be easily printed.
+
+    If size is set to 'None' then the function returns number of whitespace characters of the
+    same width as if an actual value was supplied.
+
+    Courtesy of 'https://stackoverflow.com/questions/1094841/reusable-library-to-get-human-
+    readable-version-of-file-size'
+
+    :param int size: the size in Bytes
+
+    :return str: the formatted size for output
+    """
+    if size is None:
+        return " " * 10
+    for unit in ["", "Ki", "Mi", "Gi", "Ti"]:
+        if abs(size) < 1024.0:
+            if unit == "":
+                return f"{size:6.0f} B  "
+            return f"{size:6.1f} {unit}B"
+        size /= 1024.0
+    return f"{size:.1f} PiB"
 
 
 class History:
@@ -935,7 +972,7 @@ class History:
         """
         # Update the unresolved parents
         minor_sha = minor_version_info.checksum
-        version_index = helpers.first_index_of_attr(self.unresolved_edges, "next", minor_sha)
+        version_index = common_kit.first_index_of_attr(self.unresolved_edges, "next", minor_sha)
         self.unresolved_edges[version_index : version_index + 1] = [
             History.Edge(p, "white", minor_sha) for p in minor_version_info.parents
         ]
@@ -1054,7 +1091,7 @@ class History:
         :param str fork_point: sha of the point, where we are forking
         """
         ulen = len(self.unresolved_edges)
-        forked_index = helpers.first_index_of_attr(self.unresolved_edges, "next", fork_point)
+        forked_index = common_kit.first_index_of_attr(self.unresolved_edges, "next", fork_point)
         src_index_map = list(range(0, ulen))
         tgt_index_map = [
             forked_index if self.unresolved_edges[i].next == fork_point else i
