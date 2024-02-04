@@ -4,18 +4,15 @@ import os
 from typing import TypedDict, List, Dict, Tuple
 from typing_extensions import Union
 
-Data = TypedDict(
-    "Data",
-    {
-        "ccn": int,
-        "average_cyclomatic_complexity": float,
-        "average_nloc": float,
-        "average_token_count": float,
-        "nloc": int,
-        "token_count": int,
-        "functions": List[Dict[str, Union[int, str]]],
-    },
-)
+
+class Data(TypedDict):
+    average_code_complexity: int
+    average_cyclomatic_complexity: float
+    average_length_of_code: float
+    average_token_count: float
+    number_of_functions: int
+    token_count: int
+    functions: List[Dict[str, Union[int, str]]]
 
 
 class LizardParser(BaseParser):
@@ -24,11 +21,11 @@ class LizardParser(BaseParser):
     def parse(self, file_path: str) -> Data:
         data = lizard.analyze_file(file_path)
         return_data: Data = {
-            "ccn": data.CCN,
+            "average_code_complexity": data.CCN,
             "average_cyclomatic_complexity": data.average_cyclomatic_complexity,
-            "average_nloc": data.average_nloc,
+            "average_length_of_code": data.average_nloc,
             "average_token_count": data.average_token_count,
-            "nloc": data.nloc,
+            "number_of_functions": data.nloc,
             "token_count": data.token_count,
             "functions": [
                 {
@@ -36,7 +33,7 @@ class LizardParser(BaseParser):
                     "end_line": func.end_line,
                     "func_name": func.name,
                     "start_line": func.start_line,
-                    "nloc": func.nloc,
+                    "lines_of_code": func.nloc,
                     "token_count": func.token_count,
                     "parameters_count": func.parameter_count,
                     "length": func.length,
