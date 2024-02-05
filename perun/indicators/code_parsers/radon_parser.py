@@ -67,7 +67,8 @@ class RadonParser(BaseParser):
             "number_of_functions": len(results),
             "function_names": [func.fullname for func in results],
             "functions": [
-                {"func_name": func.fullname, "cyclomatic_complexity": func.complexity} for func in results
+                {"func_name": func.fullname, "cyclomatic_complexity": func.complexity}
+                for func in results
             ],
         }
 

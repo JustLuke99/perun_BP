@@ -4,6 +4,7 @@ from datetime import datetime
 import sys
 from perun.logic.stats import add_stats
 import magic
+from perun.vcs import get_minor_head
 
 
 class IndicatorsManager:
@@ -165,7 +166,7 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        add_stats("indicator_data", [self.vcs_version], self.data)
+        add_stats("indicator_data", [self.vcs_version], [self.data])
 
     def _has_extension(self, file_path):
         """
@@ -195,10 +196,12 @@ def test_indicator_manager():
     IGNORE_FILES = ["meson.build"]
     FOLDER = "./test_files/"
     # pro každou verzi vcs je potřeba znovu vytvořit IndicatorsManager(...)
-    parser = IndicatorsManager(vsc_version="123ABC", load_parsers=False)
+    # parser = IndicatorsManager(vsc_version="123ABC", load_parsers=False)
+    parser = IndicatorsManager(vsc_version=get_minor_head(), load_parsers=False)
     fiLES = parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
     print("Size of data: ", sys.getsizeof(parser.data))
     print("Time taken: ", datetime.now() - start_time)
     print(fiLES)
 
-test_indicator_manager()
+
+# test_indicator_manager()

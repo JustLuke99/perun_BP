@@ -11,8 +11,6 @@ import PyPDF2
 from constants import *
 
 
-
-
 def exit_func(error_message):
     print(error_message)
     exit()
@@ -57,6 +55,7 @@ def open_pdf(my_pw_found, file_name, start, end):
             if my_pw_found.value:
                 break
 
+
 def open_rar(my_pw_found, file_name, start, end):
     for password in range(start, end):
         try:
@@ -70,10 +69,11 @@ def open_rar(my_pw_found, file_name, start, end):
         if my_pw_found.value:
             break
 
+
 def open_zip(my_pw_found, file_name, start, end):
     for password in range(start, end):
         try:
-            with zipfile.ZipFile(file_name, 'r') as file:
+            with zipfile.ZipFile(file_name, "r") as file:
                 file.extractall(pwd=password)
                 my_pw_found.value = True
                 exit_func(f"Password is: {password}")
@@ -83,8 +83,10 @@ def open_zip(my_pw_found, file_name, start, end):
         if my_pw_found.value:
             break
 
+
 def hehe():
-    open_zip("da","da","da","da")
+    open_zip("da", "da", "da", "da")
+
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -114,11 +116,23 @@ if __name__ == "__main__":
         for i in range(num_cores):
             end = start + 1000
             if file_type == "pdf":
-                processes.append(multiprocessing.Process(target=open_pdf, args=(pw_found, file_names[i], start, end)))
+                processes.append(
+                    multiprocessing.Process(
+                        target=open_pdf, args=(pw_found, file_names[i], start, end)
+                    )
+                )
             elif file_type == "rar":
-                processes.append(multiprocessing.Process(target=open_rar, args=(pw_found, file_names[i], start, end)))
+                processes.append(
+                    multiprocessing.Process(
+                        target=open_rar, args=(pw_found, file_names[i], start, end)
+                    )
+                )
             elif file_type == "zip":
-                processes.append(multiprocessing.Process(target=open_zip, args=(pw_found, file_names[i], start, end)))
+                processes.append(
+                    multiprocessing.Process(
+                        target=open_zip, args=(pw_found, file_names[i], start, end)
+                    )
+                )
 
             start = end
 
@@ -138,9 +152,5 @@ if __name__ == "__main__":
         if end > max_num:
             break
 
-
-
     shutil.rmtree(FOLDER_NAME)
     print(f"Opening time: {time.time() - start_time:.2f} seconds")
-
-
