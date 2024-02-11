@@ -74,7 +74,7 @@ class BetterRepositorySelection:
                     continue
 
                 # TODO create better rule parser
-                # TODO move it to better place
+                # TODO ?move it to better place?
                 rule = thresholds[file["parser_name"]][key]
                 range_type, num = rule.split(" ")
                 num2 = None
