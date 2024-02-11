@@ -22,12 +22,21 @@ from tomlkit import parse
 class BetterRepositorySelection:
     # nastavení soubor/složka(rek)/projekt -checkby file/folder/project
     # nastevní thresholdu - hodnota/hodnoty/dynamicky podle průměru (musí být celý prjekt/posledních x commitů) -treshhold num/nums/dynamic
+    def __init__(self):
+        with open("pyproject.toml", "r") as file:
+            config = tomlkit.parse(file.read())
+
+        self.thresholds = config["tool"]["select"]["thresholds"]
+        self.compare_data_filter_parsers = config["tool"]["select"]["compare_data_filter_parsers"]
+        self.compare_data_filter_parser_names = config["tool"]["select"][
+            "compare_data_filter_parser_names"
+        ]
 
     # def should_check_version(self, head_version: MinorVersion) -> tuple[bool, float]:
     def should_check_version(self, target_version: MinorVersion) -> tuple[bool, float]:
         """We check all versions always when checking by whole repository selector
 
-        :param _: analysed target version
+        :param target_version: analysed target version
         :return: always true with 100% confidence
         """
         # head_hash = target_version.checksum
@@ -43,7 +52,7 @@ class BetterRepositorySelection:
         exit()
 
         # NOTE for testing :^O
-        x = WholeRepositorySelection.get_skeleton(self, target_version=get_minor_head())
+        # x = WholeRepositorySelection.get_skeleton(self, target_version=get_minor_head())
         print(x)
 
         # print([x for x in parents])
@@ -51,8 +60,7 @@ class BetterRepositorySelection:
 
         return True, 1
 
-    @staticmethod
-    def _check_diff(diff_data):
+    def _check_diff(self, diff_data):
         """
         Check if the differences in the given data exceed the thresholds defined in pyproject.toml.
 
@@ -60,22 +68,17 @@ class BetterRepositorySelection:
         :return: Tuple (check, confidence) where check is a boolean indicating whether to check the version,
                  and confidence is a float indicating the confidence level.
         """
-        with open("pyproject.toml", "r") as file:
-            config = tomlkit.parse(file.read())
-
-        thresholds = config["tool"]["select"]["thresholds"]
-
         for file in diff_data:
-            if not file["parser_name"] in thresholds.keys():
+            if not file["parser_name"] in self.thresholds.keys():
                 continue
 
             for key, value in file["data"].items():
-                if key not in thresholds[file["parser_name"]].keys():
+                if key not in self.thresholds[file["parser_name"]].keys():
                     continue
 
                 # TODO create better rule parser
                 # TODO ?move it to better place?
-                rule = thresholds[file["parser_name"]][key]
+                rule = self.thresholds[file["parser_name"]][key]
                 range_type, num = rule.split(" ")
                 num2 = None
 
@@ -118,7 +121,7 @@ class BetterRepositorySelection:
                         if isinstance(dict1[key], int) or isinstance(dict1[key], float):
                             compared_data[key] = abs(dict1[key] - dict2[key])
                 except:
-                    print("")
+                    pass
             return compared_data
 
         # TODO change this to first_hash
@@ -133,8 +136,10 @@ class BetterRepositorySelection:
             )
 
             for parser in file["data"]:
-                # TODO improve ["RadonParser"]
-                if not parser["parser_name"] in ["RadonParser", "LizardParser"]:
+                if (
+                    self.compare_data_filter_parsers
+                    and parser["parser_name"] not in self.compare_data_filter_parser_names
+                ):
                     continue
 
                 second_data = self._get_parser_data(parser["parser_name"], second_item["data"])
