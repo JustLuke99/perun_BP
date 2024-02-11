@@ -183,7 +183,7 @@ source = [
     "perun",
 ]
 omit = [
-    "tests/*"
+    "tests/*",
     "perun/collect/trace/*",
     "perun/thirdparty/*"
 ]
@@ -213,4 +213,23 @@ target-version = [
     "py311"
 ]
 line-length = 100
+
+[tool.select]
+# Specify the type of check to be performed
+type = "file"  # Options: file<str> / folder<str>(recursively) / project<str>
+
+# Specify which commits to compare
+commits = "last"  # Options: last<str> / num<int> (number of parents will be compared) / all<str>
+
+# Define thresholds for specific variables
+[tool.select.thresholds.RadonParser]
+# Options:
+#   - 'from/to/between': Define the range of accepted values.
+#   - <num>: Specify the numerical value for the threshold.
+#   - <second num for between (optional)>: Opti # in future add check for every var
+number_of_lines = "from 10"
+number_of_logic_lines = "between 2 50"
+lines_of_code = "to 5"
+
+
 
