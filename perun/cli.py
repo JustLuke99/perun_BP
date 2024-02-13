@@ -76,7 +76,9 @@ import perun.postprocess
 import perun.profile.helpers as profiles
 import perun.view
 from perun.indicators.indicator_manager import test_indicator_manager
-
+from perun.select.better_repository_selection import select_test
+from perun.vcs.git_repository import GitRepository
+from perun.vcs.vcs_kit import CleanState
 DEV_MODE = False
 
 
@@ -479,7 +481,7 @@ def remove(
     try:
         commands.remove_from_index(from_index_generator, minor)
         commands.remove_from_pending(from_jobs_generator)
-    except (NotPerunRepositoryException) as exception:
+    except NotPerunRepositoryException as exception:
         perun_log.error(f"could not remove profiles: {str(exception)}")
 
 
@@ -1167,6 +1169,27 @@ def test_indicator():
     test_indicator_manager()
 
 
+@cli.command()
+def test_sel():
+    git_repo = GitRepository(os.getcwd())
+    head_hash = git_repo.get_minor_head()
+    commits = [x for x in git_repo.walk_minor_versions(head_hash)]
+    for commit in commits:
+        with CleanState() as _:
+            select_test(commit)
+
+
+@cli.command()
+def get_data_from_commits():
+    git_repo = GitRepository(os.getcwd())
+    head_hash = git_repo.get_minor_head()
+    commits = [x for x in git_repo.walk_minor_versions(head_hash)]
+    for commit in commits:
+        with CleanState() as _:
+            git_repo.checkout(commit.checksum)
+            test_indicator_manager(commit.checksum)
+
+
 def init_unit_commands(lazy_init: bool = True) -> None:
     """Runs initializations for all of subcommands (shows, collectors, postprocessors)
 
@@ -1190,6 +1213,9 @@ cli.add_command(check_cli.check_group)
 cli.add_command(config_cli.config)
 cli.add_command(run_cli.run)
 cli.add_command(utils_cli.utils_group)
+cli.add_command(test_indicator)
+cli.add_command(test_sel)
+cli.add_command(get_data_from_commits)
 
 
 def launch_cli_in_dev_mode() -> None:
@@ -1235,3 +1261,7 @@ def launch_cli() -> None:
         launch_cli_in_dev_mode()
     else:
         launch_cli_safely()
+
+
+if __name__ == "__main__":
+    test_sel()

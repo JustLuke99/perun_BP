@@ -1,4 +1,5 @@
 # Standard Imports
+import os
 from typing import Iterator, List
 
 # Third-Party Imports
@@ -12,25 +13,36 @@ from perun.select.abstract_base_selection import AbstractBaseSelection
 from perun.utils.structs import MinorVersion
 from perun.logic.stats import get_stats_of
 from perun.select.whole_repository_selection import WholeRepositorySelection
-from perun.vcs import get_minor_head
-from collections import defaultdict
-import tomlkit
-from tomlkit import parse
+from perun.vcs.git_repository import GitRepository
+
+
+CONFIG = {
+    "compare_data_filter_parsers": True,
+    "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
+    "check_version_type": "last",
+    "parsers": {
+        "RadonParser": {
+            "active": True,
+            "number_of_lines": "from 10",
+            "number_of_logic_lines": "between 2 50",
+            "lines_of_code": "to 5",
+        },
+        "LizardParser": {
+            "active": True,
+            "average_code_complexity": "from 1",
+            "token_count": "from 4",
+            "start_line": "from 2",
+        },
+    },
+}
 
 
 # class BetterRepositorySelection(AbstractBaseSelection):
 class BetterRepositorySelection:
-    # nastavení soubor/složka(rek)/projekt -checkby file/folder/project
-    # nastevní thresholdu - hodnota/hodnoty/dynamicky podle průměru (musí být celý prjekt/posledních x commitů) -treshhold num/nums/dynamic
-    def __init__(self):
-        with open("pyproject.toml", "r") as file:
-            config = tomlkit.parse(file.read())
+    __slots__ = ("git_repo",)
 
-        self.thresholds = config["tool"]["select"]["thresholds"]
-        self.compare_data_filter_parsers = config["tool"]["select"]["compare_data_filter_parsers"]
-        self.compare_data_filter_parser_names = config["tool"]["select"][
-            "compare_data_filter_parser_names"
-        ]
+    def __init__(self):
+        self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
 
     # def should_check_version(self, head_version: MinorVersion) -> tuple[bool, float]:
     def should_check_version(self, target_version: MinorVersion) -> tuple[bool, float]:
@@ -39,66 +51,93 @@ class BetterRepositorySelection:
         :param target_version: analysed target version
         :return: always true with 100% confidence
         """
-        # head_hash = target_version.checksum
-        head_hash = "1168e8e02858ae1ec389ff3e37df7fceed54bdff"
-        first_parent_hash = [x for x in vcs.walk_minor_versions(head_hash)][1].checksum
-        first_parent_hash = "7acd059b05c984afea70692d4c25c29825d8d12c"
 
-        diff = self._get_version_diff(head_hash, first_parent_hash)
+        git_repo = GitRepository(os.getcwd())
 
-        should_check = self._check_diff(diff_data=diff)
+        minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
 
-        # return should_check
-        exit()
+        # version_one, version_two = [
+        #     x
+        #     for x in git_repo.walk_minor_versions(head_hash)
+        #     if x.checksum == "7acd059b05c984afea70692d4c25c29825d8d12c"
+        #     or x.checksum == "1168e8e02858ae1ec389ff3e37df7fceed54bdff"
+        # ]
+        if len(minor_versions) < 2:
+            exit()
 
-        # NOTE for testing :^O
-        # x = WholeRepositorySelection.get_skeleton(self, target_version=get_minor_head())
-        print(x)
+        version_one, version_two = minor_versions[:2]
 
-        # print([x for x in parents])
-        # print([x.checksum for x in parents])
+        return self.should_check_versions(version_one, version_two)
 
-        return True, 1
+    def should_check_versions(
+        self, first_version: MinorVersion, second_version: MinorVersion
+    ) -> tuple[bool, float]:
+        """We check all pairs of versions always when checking by whole repository selector
 
-    def _check_diff(self, diff_data):
+        :param _: analysed target version
+        :param __: corresponding baseline version (compared against)
+        :return: always true with 100% confidence
         """
-        Check if the differences in the given data exceed the thresholds defined in pyproject.toml.
+        diff = self._get_version_diff(first_version, second_version)
+
+        should_check = self._manage_diff(diff_data=diff)
+        print("Hehe: ", should_check)
+
+        return should_check
+
+    def check_diff_thresholds(self, diff_data):
+        """
+        Check if the differences in the given data exceed the thresholds defined in the configuration.
 
         :param diff_data: List of dictionaries containing file differences.
-        :return: Tuple (check, confidence) where check is a boolean indicating whether to check the version,
+        :return: Tuple (should_check, confidence) where should_check is a boolean indicating whether to check the version,
                  and confidence is a float indicating the confidence level.
         """
-        for file in diff_data:
-            if not file["parser_name"] in self.thresholds.keys():
+        for file_diff in diff_data:
+            if file_diff["parser_name"] not in CONFIG["parsers"]:
                 continue
 
-            for key, value in file["data"].items():
-                if key not in self.thresholds[file["parser_name"]].keys():
-                    continue
+            if self._check_diff(file_diff["data"], file_diff["parser_name"]):
+                return True
 
-                # TODO create better rule parser
-                # TODO ?move it to better place?
-                rule = self.thresholds[file["parser_name"]][key]
-                range_type, num = rule.split(" ")
-                num2 = None
+        return False
 
-                # TODO improve this and add choices
-                if range_type == "to":
-                    if float(num) > float(value):
-                        # return True, 1.0
-                        print("returnuju se :)")
-                elif range_type == "from":
-                    if float(num) < float(value):
-                        # return True, 1.0
-                        print("returnuju se :)")
-                elif range_type == "between":
-                    if float(num) < float(value) < float(num2):
-                        # return True, 1.0
-                        print("returnuju se :)")
+    def _check_diff(self, file_data, parser_name):
+        """
+        Check if the differences in the given file data exceed the thresholds defined in the configuration for a specific parser.
 
-        return False, 0.0
+        :param file_data: Dictionary containing data about a file.
+        :param parser_name: Name of the parser for which the thresholds are checked.
+        :return: Boolean indicating whether the thresholds are exceeded.
+        """
+        for key, value in file_data.items():
+            if isinstance(value, list):
+                for item in value:
+                    if self._check_diff(item, parser_name):
+                        return True
 
-    def _get_version_diff(self, first_hash: str, second_hash: str) -> List[dict]:
+            if key not in CONFIG["parsers"][parser_name]:
+                continue
+
+            rule = CONFIG["parsers"][parser_name][key]
+            range_type, num = rule.split(" ")
+            num2 = None
+
+            if range_type == "to":
+                if float(num) > float(value):
+                    return True
+            elif range_type == "from":
+                if float(num) < float(value):
+                    return True
+            elif range_type == "between":
+                if float(num) < float(value) < float(num2):
+                    return True
+
+        return False
+
+    def _get_version_diff(
+        self, first_version: MinorVersion, second_version: MinorVersion
+    ) -> List[dict]:
         """
         Get the differences between two versions based on their hashes.
 
@@ -124,31 +163,37 @@ class BetterRepositorySelection:
                     pass
             return compared_data
 
-        # TODO change this to first_hash
-        head_data = self._get_data(second_hash)
+        first_version_data = self._get_data(first_version.checksum)
+        second_version_data = self._get_data(second_version.checksum)
 
         file_diff = []
-        # TODO change this to first_hash
-        for file in head_data[second_hash]:
-            # TODO change this to first_hash
-            second_item = self._get_data_from_file(
-                file_path=file["file_path"], data=head_data[second_hash]
+        for file in first_version_data[first_version.checksum]:
+            second_version_file = self._get_data_from_file(
+                file_path=file["file_path"], data=second_version_data[second_version.checksum]
             )
 
             for parser in file["data"]:
                 if (
-                    self.compare_data_filter_parsers
-                    and parser["parser_name"] not in self.compare_data_filter_parser_names
+                    CONFIG["compare_data_filter_parsers"]
+                    and parser["parser_name"] not in CONFIG["compare_data_filter_parser_names"]
                 ):
                     continue
 
-                second_data = self._get_parser_data(parser["parser_name"], second_item["data"])
-                data = compare_dicts(parser["data"], second_data)
+                if parser["parser_name"] not in CONFIG["parsers"].keys():
+                    continue
+
+                if not CONFIG["parsers"].get("parser_name", {}).get("active", True):
+                    continue
+
+                second_version_parser_data = self._get_parser_data(
+                    parser["parser_name"], second_version_file["data"]
+                )
+                diff = compare_dicts(parser["data"], second_version_parser_data)
                 file_diff.append(
                     {
                         "parser_name": parser["parser_name"],
                         "file_name": file["file_path"],
-                        "data": data,
+                        "data": diff,
                     }
                 )
 
@@ -162,7 +207,7 @@ class BetterRepositorySelection:
         :param git_hash: Hash of the git commit.
         :return: Statistics data.
         """
-        return get_stats_of("indicator_data", [git_hash])
+        return get_stats_of("indicator_data", stats_ids=[git_hash], minor_version=git_hash)
 
     @staticmethod
     def _get_parser_data(parser_name, data):
@@ -190,15 +235,6 @@ class BetterRepositorySelection:
             if item["file_path"] == file_path:
                 return item
 
-    def should_check_versions(self, _: MinorVersion, __: MinorVersion) -> tuple[bool, float]:
-        """We check all pairs of versions always when checking by whole repository selector
-
-        :param _: analysed target version
-        :param __: corresponding baseline version (compared against)
-        :return: always true with 100% confidence
-        """
-        return True, 1
-
     def should_check_profiles(self, _: Profile, __: Profile) -> tuple[bool, float]:
         """We check all pairs of profiles always when checking by whole repository selector
 
@@ -221,6 +257,6 @@ def _find_all_paths(data_list: List[dict]):
     return [{"path": path, "data": []} for path in paths]
 
 
-def select_test():
+def select_test(minor_version):
     x = BetterRepositorySelection()
-    x.should_check_version("123ABC")
+    x.should_check_version(minor_version)

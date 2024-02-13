@@ -4,7 +4,7 @@ from datetime import datetime
 import sys
 from perun.logic.stats import add_stats
 import magic
-from perun.vcs import get_minor_head
+from perun.vcs.git_repository import GitRepository
 
 
 class IndicatorsManager:
@@ -26,7 +26,7 @@ class IndicatorsManager:
         "vcs_version",
     ]
 
-    def __init__(self, vsc_version: str, load_parsers: bool = False):
+    def __init__(self, vsc_version: str):
         """
         Initializes a new instance of the CodeParserManager class.
 
@@ -39,7 +39,6 @@ class IndicatorsManager:
         self.supported_languages = []
         self.data = []
         self.vcs_version = vsc_version
-        # maybe change to True?
 
         self._load_indicators()
 
@@ -57,7 +56,8 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        root_directory = "/home/luke/PycharmProjects/perun_BP/perun/indicators/test_files"
+        # root_directory = "/home/luke/PycharmProjects/perun_BP/perun/indicators/test_files"
+        root_directory = os.getcwd()
 
         for directory_name, _, files in os.walk(root_directory):
             if any(x in directory_name for x in ignore_folders):
@@ -111,6 +111,7 @@ class IndicatorsManager:
         Returns:
         - None
         """
+        # TODO find better place
         parser_files = ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"]
 
         for parser_file in parser_files:
@@ -166,7 +167,12 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        add_stats("indicator_data", [self.vcs_version], [self.data])
+        add_stats(
+            "indicator_data",
+            minor_version=self.vcs_version,
+            stats_ids=[self.vcs_version],
+            stats_contents=[self.data],
+        )
 
     def _has_extension(self, file_path):
         """
@@ -190,18 +196,13 @@ class IndicatorsManager:
         return True if "executable" in get_file_type(file_path.replace(".bin", "")) else False
 
 
-def test_indicator_manager():
-    start_time = datetime.now()
+def test_indicator_manager(hash):
     IGNORE_FOLDERS = ["venv", "idea"]
     IGNORE_FILES = ["meson.build"]
-    FOLDER = "./test_files/"
-    # pro každou verzi vcs je potřeba znovu vytvořit IndicatorsManager(...)
-    # parser = IndicatorsManager(vsc_version="123ABC", load_parsers=False)
-    parser = IndicatorsManager(vsc_version=get_minor_head(), load_parsers=False)
-    fiLES = parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
-    print("Size of data: ", sys.getsizeof(parser.data))
-    print("Time taken: ", datetime.now() - start_time)
-    print(fiLES)
+    # FOLDER = "./test_files/"
+    FOLDER = "."
+    parser = IndicatorsManager(vsc_version=hash)
+    parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
 
 
 # test_indicator_manager()
