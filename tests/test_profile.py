@@ -1,12 +1,16 @@
+"""Collection of tests for Perun's Profiles"""
+from __future__ import annotations
+
+# Standard Imports
+
+# Third-Party Imports
 import pytest
 import git
 
-import perun.profile.helpers as profiles
-import perun.logic.commands as commands
-import perun.logic.config as config
-
+# Perun Imports
+from perun.logic import commands, config
 from perun.profile.factory import Profile
-
+import perun.profile.helpers as profiles
 import perun.testing.utils as test_utils
 
 
@@ -30,7 +34,7 @@ def test_loading(pcs_single_prof, valid_profile_pool):
     assert len(minor_version_profiles) != 0
     first_indexed = minor_version_profiles[0].load()
     assert isinstance(first_indexed, Profile)
-    assert "header" in [key for key in first_indexed]
+    assert "header" in first_indexed
 
 
 def test_name_generation(capsys):
@@ -39,26 +43,24 @@ def test_name_generation(capsys):
     Expecting correct outputs
     """
     rt_config = config.runtime()
-    rt_config.set("format.output_profile_template", "%collector%-of-%cmd%-%args%-%workload%")
+    rt_config.set("format.output_profile_template", "%collector%-of-%cmd%-%workload%")
     profile_name = profiles.generate_profile_name(
         {
             "header": {
-                "cmd": "./whatever/sub/fun/mybin",
-                "args": "-O2 -q",
+                "cmd": "./whatever/sub/fun/mybin -O2 -q",
                 "workload": "input.txt",
             },
             "collector_info": {"name": "memory", "params": {}},
         }
     )
-    assert profile_name == "memory-of-mybin-[-O2_-q]-[input.txt].perf"
+    assert profile_name == "memory-of-[mybin_-O2_-q]-[input.txt].perf"
 
     rt_config.set("format.output_profile_template", "%collector%-%postprocessors%-%origin%")
     profile_name = profiles.generate_profile_name(
         {
             "origin": "c4592b902b7c5773d20693021b76d83de63e4a3a",
             "header": {
-                "cmd": "./whatever/sub/fun/mybin",
-                "args": "-O2 -q",
+                "cmd": "./whatever/sub/fun/mybin -O2 -q",
                 "workload": "input.txt",
             },
             "postprocessors": [
@@ -79,8 +81,7 @@ def test_name_generation(capsys):
         {
             "origin": "c4592b902b7c5773d20693021b76d83de63e4a3a",
             "header": {
-                "cmd": "./whatever/sub/fun/mybin",
-                "args": "-O2 -q",
+                "cmd": "./whatever/sub/fun/mybin -O2 -q",
                 "workload": "input.txt",
             },
             "postprocessors": [
@@ -99,8 +100,7 @@ def test_name_generation(capsys):
             {
                 "origin": "c4592b902b7c5773d20693021b76d83de63e4a3a",
                 "header": {
-                    "cmd": "./whatever/sub/fun/mybin",
-                    "args": "-O2 -q",
+                    "cmd": "./whatever/sub/fun/mybin -O2 -q",
                     "workload": "input.txt",
                 },
                 "postprocessors": [

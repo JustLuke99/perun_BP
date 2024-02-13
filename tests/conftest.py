@@ -1,28 +1,23 @@
 """Shared fixtures for the testing of functionality of Perun commands."""
+from __future__ import annotations
 
+# Standard Imports
+from typing import Iterable, Callable
 import glob
 import os
 import shutil
 import subprocess
 import tempfile
 
+# Third-Party Imports
 import git
-
-from typing import Iterable, Callable
-
-from perun.utils.common import common_kit
-import perun.utils.log as log
-import perun.logic.pcs as pcs
-import perun.logic.store as store
-import perun.cli as cli
 import pytest
 
-import perun.logic.commands as commands
-import perun.utils.decorators as decorators
-import perun.utils.streams as streams
-import perun.utils.metrics as metrics
-import perun.vcs as vcs
-
+# Perun Imports
+from perun import cli
+from perun.logic import commands, pcs, store
+from perun.utils import decorators, log, metrics, streams
+from perun.utils.common import common_kit
 import perun.testing.utils as test_utils
 
 
@@ -52,7 +47,7 @@ def memory_collect_job():
     target_bin_path = os.path.join(target_dir, "mct")
     assert "mct" in list(os.listdir(target_dir))
 
-    yield [target_bin_path], "", [""], ["memory"], []
+    yield [target_bin_path], [""], ["memory"], []
 
     # Remove the testing stuff
     os.remove(os.path.join(target_dir, "mct"))
@@ -76,7 +71,7 @@ def memory_collect_no_debug_job():
     target_bin_path = os.path.join(target_dir, "mct-no-dbg")
     assert "mct-no-dbg" in list(os.listdir(target_dir))
 
-    yield [target_bin_path], "", [""], ["memory"], []
+    yield [target_bin_path], [""], ["memory"], []
 
     # Remove the testing stuff
     os.remove(os.path.join(target_dir, "mct-no-dbg"))
@@ -85,7 +80,7 @@ def memory_collect_no_debug_job():
 @pytest.fixture(scope="session")
 def complexity_collect_job():
     """
-    :returns: 'bin', '', [''], 'memory', [], {}
+    :returns: 'bin', [''], 'memory', [], {}
     """
     # Load the configuration from the job file
     script_dir = os.path.split(__file__)[0]
@@ -98,9 +93,7 @@ def complexity_collect_job():
     assert "target_dir" in job_config.keys()
     job_config["target_dir"] = target_dir
 
-    yield [target_dir], "", [""], ["complexity"], [], {
-        "collector_params": {"complexity": job_config}
-    }
+    yield [target_dir], [""], ["complexity"], [], {"collector_params": {"complexity": job_config}}
 
     # Remove target testing directory
     shutil.rmtree(target_dir)
@@ -118,9 +111,7 @@ def trace_collect_job():
     job_config_file = os.path.join(source_dir, "job.yml")
     job_config = streams.safely_load_yaml_from_file(job_config_file)
 
-    yield [target_dir + "/tst"], "", [""], ["trace"], [], {
-        "collector_params": {"trace": job_config}
-    }
+    yield [target_dir + "/tst"], [""], ["trace"], [], {"collector_params": {"trace": job_config}}
 
     # Remove trace collect scripts generated at testing
     [os.remove(filename) for filename in glob.glob(source_dir + "/*.stp")]
@@ -265,7 +256,7 @@ def pcs_with_degradations():
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     # Populate repo with commits
     repo = git.Repo(pcs_path)
@@ -321,7 +312,7 @@ def pcs_single_prof(stored_profile_pool):
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     # Populate repo with commits
     repo = git.Repo(pcs_path)
@@ -369,7 +360,7 @@ def pcs_full(stored_profile_pool):
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     # Populate repo with commits
     repo = git.Repo(pcs_path)
@@ -422,7 +413,7 @@ def pcs_full_no_prof():
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     # Populate repo with commits
     repo = git.Repo(pcs_path)
@@ -462,7 +453,7 @@ def pcs_with_empty_git():
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     yield pcs
 
@@ -481,7 +472,7 @@ def pcs_with_root():
     commands.init_perun_at(pcs_path, False, {"vcs": {"url": "../", "type": "git"}})
 
     # Initialize git
-    vcs.init({})
+    pcs.vcs().init({})
 
     # Populate repo with commits
     repo = git.Repo(pcs_path)
@@ -532,6 +523,7 @@ def setup():
 
     # Reset the verbosity to release
     log.VERBOSITY = 0
+    log.CURRENT_INDENT = 0
     # We disable the metrics by default, since they might slow down tests
     metrics.Metrics.enabled = False
     yield

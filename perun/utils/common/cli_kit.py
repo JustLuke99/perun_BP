@@ -23,7 +23,6 @@ import click
 import jinja2
 
 # Perun Imports
-from perun import vcs
 from perun.collect.trace.optimizations.optimization import Optimization
 from perun.collect.trace.optimizations.structs import CallGraphTypes
 from perun.logic import commands, store, stats, config, pcs
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
 def print_version(_: click.Context, __: click.Option, value: bool) -> None:
     """Prints current version of Perun and ends"""
     if value:
-        log.info(f"Perun {perun.__version__}")
+        log.write(f"Perun {perun.__version__}")
         exit(0)
 
 
@@ -206,13 +205,13 @@ def minor_version_list_callback(
     """
     minors: list[MinorVersion] = []
     for minor_version in value or []:
-        massaged_version = vcs.massage_parameter(minor_version)
+        massaged_version = pcs.vcs().massage_parameter(minor_version)
         # If we should crawl all the parents, we collect them
         if ctx.params.get("crawl_parents", False):
-            minors.extend(vcs.walk_minor_versions(massaged_version))
+            minors.extend(pcs.vcs().walk_minor_versions(massaged_version))
         # Otherwise we retrieve the minor version info for the param
         else:
-            minors.append(vcs.get_minor_version_info(massaged_version))
+            minors.append(pcs.vcs().get_minor_version_info(massaged_version))
     return minors
 
 
@@ -410,14 +409,15 @@ def lookup_profile_in_filesystem(profile_name: str) -> str:
     if os.path.exists(profile_name):
         return profile_name
 
-    log.info(f"file '{profile_name}' does not exist. Checking pending jobs...")
+    log.minor_fail(f"file '{profile_name}'", "does not exist")
+    log.minor_info("Checking pending jobs")
     # 2) if it does not exist check pending
     job_dir = pcs.get_job_directory()
     job_path = os.path.join(job_dir, profile_name)
     if os.path.exists(job_path):
         return job_path
 
-    log.info(f"file '{profile_name}' not found in pending jobs...")
+    log.minor_fail(f"file '{profile_name}'", "not found in pending jobs")
     # 3) if still not found, check recursively all candidates for match and ask for confirmation
     searched_regex = re.compile(profile_name)
     for root, _, files in os.walk(os.getcwd()):
@@ -441,7 +441,7 @@ def lookup_minor_version_callback(_: click.Context, __: click.Option, value: str
     """
     if value:
         try:
-            return vcs.massage_parameter(value)
+            return pcs.vcs().massage_parameter(value)
         except VersionControlSystemException as exception:
             raise click.BadParameter(str(exception))
     return value
@@ -462,7 +462,7 @@ def lookup_any_profile_callback(_: click.Context, __: click.Argument, value: str
     rev = None
     if len(parts) > 1:
         rev, value = parts[0], parts[1]
-        rev = vcs.massage_parameter(rev)
+        rev = pcs.vcs().massage_parameter(rev)
     # 0) First check if the value is tag or not
     index_tag_match = store.INDEX_TAG_REGEX.match(value)
     if index_tag_match:
@@ -483,7 +483,8 @@ def lookup_any_profile_callback(_: click.Context, __: click.Argument, value: str
     if profile_from_index:
         return profile_from_index
 
-    log.info(f"file '{value}' not found in index. Checking filesystem...")
+    log.minor_fail(f"file '{value}'", "not found in index")
+    log.minor_info("Checking filesystem.")
     # 2) Else lookup filenames and load the profile
     abs_path = lookup_profile_in_filesystem(value)
     if not os.path.exists(abs_path):
@@ -535,7 +536,7 @@ def lookup_stats_file_callback(ctx: click.Context, _: click.Argument, value: str
     :return: either the looked up path of the file or the original value if no lookup was performed
     """
     # Resolve the 'in_minor' to HEAD if not specified
-    in_minor = vcs.get_minor_head() if not ctx.params["in_minor"] else ctx.params["in_minor"]
+    in_minor = pcs.vcs().get_minor_head() if not ctx.params["in_minor"] else ctx.params["in_minor"]
     # Check the existence only for files with specific 'in_minor'
     if in_minor != ".":
         try:
@@ -777,7 +778,7 @@ def generate_cli_dump(
 
     with open(dump_file, "w") as dump_handle:
         dump_handle.write(output)
-    log.info(f"Saved dump to '{dump_file}'")
+    log.minor_status("Saved dump", status=f"{log.path_style(dump_file)}")
 
 
 def set_optimization(_: click.Context, param: click.Argument, value: str) -> str:

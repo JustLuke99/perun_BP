@@ -63,7 +63,6 @@ from perun.collect.trace.optimizations.structs import Parameters
 from perun.profile.factory import Profile
 from perun.utils.exceptions import (
     UnsupportedModuleException,
-    UnsupportedModuleFunctionException,
     NotPerunRepositoryException,
     IncorrectProfileFormatException,
     EntryNotFoundException,
@@ -283,14 +282,10 @@ def init(dst: str, configure: bool, config_template: str, **kwargs: Any) -> None
             # Run the interactive configuration of the local perun repository (populating .yml)
             configure_local_perun(dst)
         else:
-            msg = "\nIn order to automatically run jobs configure the matrix at:\n"
-            msg += "\n" + (" " * 4) + ".perun/local.yml\n"
-            perun_log.quiet_info(msg)
-    except (
-        UnsupportedModuleException,
-        UnsupportedModuleFunctionException,
-    ) as unsup_module_exp:
-        perun_log.error(f"while initializing perun: {str(unsup_module_exp)}")
+            perun_log.minor_status(
+                "Local instance of Perun can now be (manually) configured",
+                status=f"{perun_log.path_style('.perun/local.yml')}",
+            )
     except PermissionError:
         perun_log.error("writing to shared config 'shared.yml' requires root permissions")
     except (ExternalEditorErrorException, MissingConfigSectionException):
@@ -484,7 +479,7 @@ def remove(
     try:
         commands.remove_from_index(from_index_generator, minor)
         commands.remove_from_pending(from_jobs_generator)
-    except (NotPerunRepositoryException, EntryNotFoundException) as exception:
+    except (NotPerunRepositoryException) as exception:
         perun_log.error(f"could not remove profiles: {str(exception)}")
 
 
@@ -895,14 +890,6 @@ def collect(ctx: click.Context, **kwargs: Any) -> None:
 @cli.command("fuzz")
 @click.option("--cmd", "-b", nargs=1, required=True, help="The command which will be fuzzed.")
 @click.option(
-    "--args",
-    "-a",
-    nargs=1,
-    required=False,
-    default="",
-    help="Arguments for the fuzzed command.",
-)
-@click.option(
     "--input-sample",
     "-w",
     nargs=1,
@@ -1169,9 +1156,9 @@ def collect(ctx: click.Context, **kwargs: Any) -> None:
     required=False,
     help="Will not plot the interpretation of the fuzzing in form of graphs.",
 )
-def fuzz_cmd(cmd: str, args: str, **kwargs: Any) -> None:
+def fuzz_cmd(cmd: str, **kwargs: Any) -> None:
     """Performs fuzzing for the specified command according to the initial sample of workload."""
-    kwargs["executable"] = Executable(cmd, args)
+    kwargs["executable"] = Executable(cmd)
     fuzz.run_fuzzing_for_command(**kwargs)
 
 

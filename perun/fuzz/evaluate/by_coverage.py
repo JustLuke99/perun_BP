@@ -84,9 +84,9 @@ def baseline_testing(
     """
     # get source files (.c, .cc, .cpp, .h)
     config.coverage.source_files = get_src_files(config.coverage.source_path)
-    log.info("Detected gcov version ", end="")
-    log.cprint(f"{config.coverage.gcov_version}", "white")
-    log.info("")
+    log.minor_status(
+        f"{log.highlight('gcov')} version", status=f"version {config.coverage.gcov_version}"
+    )
 
     return get_initial_coverage(executable, workloads, config.hang_timeout, config)
 
@@ -108,18 +108,23 @@ def get_initial_coverage(
     coverages = []
 
     # run program with each seed
+    log.minor_info("Running program with seeds")
+    log.increase_indent()
     for seed in seeds:
         prepare_workspace(fuzzing_config.coverage.gcno_path)
 
-        command = " ".join([os.path.abspath(executable.cmd), executable.args, seed.path])
+        command = " ".join([os.path.abspath(executable.cmd), seed.path])
 
         try:
             commands.run_safely_external_command(command, timeout=timeout)
+            log.minor_success(f"{log.cmd_style(command)}")
         except subprocess.CalledProcessError as serr:
+            log.minor_fail(f"{log.cmd_style(command)}")
             log.error("Initial testing with file " + seed.path + " caused " + str(serr))
         seed.cov = get_coverage_from_dir(os.getcwd(), fuzzing_config.coverage)
 
         coverages.append(seed.cov)
+    log.decrease_indent()
 
     return int(statistics.median(coverages))
 
@@ -146,7 +151,7 @@ def target_testing(
     :return bool: true if the base coverage has just increased
     """
     prepare_workspace(config.coverage.gcno_path)
-    command = " ".join([executable.cmd, executable.args, workload.path])
+    command = " ".join([executable.cmd, workload.path])
 
     try:
         commands.run_safely_external_command(command, timeout=config.hang_timeout)

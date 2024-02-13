@@ -1,21 +1,24 @@
 """
 Basic tests for fuzz-testing mode of perun
 """
+from __future__ import annotations
 
+# Standard Imports
 import os
 import sys
 import subprocess
-import pytest
 
+# Third-Party Imports
+import pytest
 from click.testing import CliRunner
 
-import perun.cli as cli
+# Perun Imports
+from perun import cli
+from perun.fuzz.structs import CoverageConfiguration
+from perun.testing import asserts
+from perun.utils.external import commands
 import perun.fuzz.evaluate.by_coverage as coverage_fuzz
 import perun.fuzz.evaluate.by_perun as perun_fuzz
-from perun.fuzz.structs import CoverageConfiguration
-from perun.utils.external import commands
-
-import perun.testing.asserts as asserts
 
 
 @pytest.mark.usefixtures("cleandir")
@@ -38,7 +41,7 @@ def test_fuzzing_coverage(capsys):
     coverage_fuzz.prepare_workspace(gcno_files_path)
 
     command = " ".join([os.path.abspath(hang_test), num_workload])
-    out, _ = capsys.readouterr()
+    _ = capsys.readouterr()
 
     commands.run_safely_external_command(command)
     cov = coverage_fuzz.get_coverage_from_dir(os.getcwd(), coverage_config)
@@ -230,7 +233,7 @@ def test_fuzzing_sigabort(pcs_with_root):
 
 
 @pytest.mark.usefixtures("cleandir")
-def test_fuzzing_hangs(pcs_with_root):
+def test_fuzzing_hangs(pcs_with_root, monkeypatch):
     """Runs basic tests for fuzzing CLI"""
     runner = CliRunner()
     examples = os.path.join(os.path.dirname(__file__), "sources", "fuzz_examples")
@@ -268,6 +271,17 @@ def test_fuzzing_hangs(pcs_with_root):
     hang_test = os.path.join(examples, "hang-test", "hang")
 
     # Fixme: This test is shaky, and should be implemented in different way; it can sometimes fail with error
+    old_run_process = commands.run_safely_external_command
+
+    def patched_run_process(*_, **__):
+        caller = sys._getframe().f_back.f_code.co_name
+        if caller == "target_testing":
+            raise subprocess.TimeoutExpired("./hang-test", 10)
+        else:
+            return old_run_process(*_, **__)
+
+    monkeypatch.setattr(commands, "run_safely_external_command", patched_run_process)
+
     # during the initial testing
     result = runner.invoke(
         cli.fuzz_cmd,
@@ -279,7 +293,7 @@ def test_fuzzing_hangs(pcs_with_root):
             "--source-path", os.path.dirname(hang_test),
             "--gcno-path", os.path.dirname(hang_test),
             "--mutations-per-rule", "proportional",
-            "--hang-timeout", "0.05",
+            "--hang-timeout", "1",
             "--exec-limit", "1",
             "--no-plotting",
             "--collector-params", "time", "repeat: 1",
@@ -335,7 +349,6 @@ def test_fuzzing_incorrect(pcs_with_root):
     result = runner.invoke(
         cli.fuzz_cmd,
         [
-            "--args", "-al",
             "--output-dir", ".",
             "--input-sample", ".",
         ],
@@ -348,7 +361,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--output-dir", ".",
         ],
     )  # fmt: skip
@@ -360,7 +372,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
         ],
     )  # fmt: skip
@@ -372,7 +383,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--source-path", "WTF~~notexisting",
@@ -386,7 +396,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--gcno-path", "WTF~~notexisting",
@@ -400,7 +409,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--timeout", "not_number",
@@ -414,7 +422,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--hang-timeout", "0",
@@ -428,7 +435,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--max-size", "1.5",
@@ -442,7 +448,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--max-size-increase", "ola",
@@ -456,7 +461,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--max-size-ratio", "two_hundred",
@@ -470,7 +474,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--exec-limit", "1.6",
@@ -484,7 +487,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--interesting-files-limit", "-1",
@@ -498,7 +500,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--coverage-increase-rate", "notvalidfloat",
@@ -512,7 +513,6 @@ def test_fuzzing_incorrect(pcs_with_root):
         cli.fuzz_cmd,
         [
             "--cmd", "ls",
-            "--args", "-al",
             "--input-sample", ".",
             "--output-dir", ".",
             "--regex-rules", "e",

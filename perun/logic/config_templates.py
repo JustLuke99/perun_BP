@@ -23,8 +23,6 @@ The actually set options are specified in the following table. When the option i
 +-------------------------------------------+----------------------------------------+-------------------------------+------------+
 | :cunit:`cmds`                             |               auto lookup              |               --              |     --     |
 +-------------------------------------------+----------------------------------------+-------------------------------+------------+
-| :cunit:`args`                             |                    --                  |               --              |     --     |
-+-------------------------------------------+----------------------------------------+-------------------------------+------------+
 | :cunit:`workloads`                        |               auto lookup              |               --              |     --     |
 +-------------------------------------------+----------------------------------------+-------------------------------+------------+
 | :cunit:`collectors`                       | :ref:`collectors-time`                 |               --              |     --     |
@@ -75,7 +73,7 @@ vcs:
 ## The following sets the executables (binaries / scripts).
 ## These will be profiled by selected collectors.
 {% if cmds is defined %}
-## Extend the following region with more executables to be profiled:
+## Extend the following region with more executable commands to be profiled:
 cmds:
 // for cmd in cmds:
   - {{ cmd }}
@@ -84,19 +82,6 @@ cmds:
 ## Uncomment and edit the following region:
 # cmds:
 #   - echo
-{% endif %}
-
-## The following sets argument configurations for the profiled executables
-{% if args is defined %}
-## Extend the following region to profile more configuration:
-args:
-// for arg in args
-  - {{ arg }}
-// endfor
-{% else %}
-## Uncomment and edit the following region:
-# args:
-#   - -e
 {% endif %}
 
 ## The following sets the profiling workload for given commands
@@ -319,8 +304,6 @@ class UserConfiguration(DeveloperConfiguration):
     +-------------------------------------------+----------------------------------------+
     | :cunit:`cmds`                             |               auto lookup              |
     +-------------------------------------------+----------------------------------------+
-    | :cunit:`args`                             |                    --                  |
-    +-------------------------------------------+----------------------------------------+
     | :cunit:`workloads`                        |               auto lookup              |
     +-------------------------------------------+----------------------------------------+
     | :cunit:`collectors`                       | :ref:`collectors-time`                 |
@@ -369,7 +352,7 @@ class UserConfiguration(DeveloperConfiguration):
 
         :return: list of candidate workloads
         """
-        log.info("Looking up candidate workloads")
+        log.minor_info("Looking for candidate workloads")
         workload_candidates = []
         for file in UserConfiguration._all_candidate_files(UserConfiguration.WORKLOAD_FOLDERS):
             workload_candidates.append(file)
@@ -385,12 +368,15 @@ class UserConfiguration(DeveloperConfiguration):
         :return: list of candidate executables
         """
         # Execute make before, in case there is nothing to make, then beat it
-        log.info("Looking up candidate executables")
-        log.info("Try to compile binaries for the project by running make")
+        log.minor_info("Looking for candidate executables")
+        log.increase_indent()
         try:
             commands.run_safely_list_of_commands(["make"])
+            log.minor_success(f"{log.cmd_style('make')}")
         except subprocess.CalledProcessError:
-            log.info("Nothing to make...")
+            log.minor_fail(f"{log.cmd_style('make')}")
+            log.minor_info("Nothing to make (probably)")
+        log.decrease_indent()
         executable_candidates = []
         for file in UserConfiguration._all_candidate_files(UserConfiguration.EXECUTABLE_FOLDERS):
             if os.path.isfile(file) and os.access(file, os.X_OK):

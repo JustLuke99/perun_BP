@@ -3,14 +3,19 @@
 Tests whether basic initialization, and re-initializations work, whether exceptions are fired,
 when working within wrong scopes, how does perun copes with existing perun directories, etc.
 """
+from __future__ import annotations
 
+# Standard Imports
+from distutils import spawn
 import os
 
-import distutils.spawn as spawn
+# Third-Party Imports
+from git.exc import GitCommandError
 import git
 import pytest
 
-import perun.logic.commands as commands
+# Perun Imports
+from perun.logic import commands
 from perun.utils.common import common_kit
 from perun.utils.exceptions import UnsupportedModuleException
 
@@ -97,7 +102,10 @@ def test_no_params_exists_pcs_in_same_dir(capsys):
 
     # Check if user was warned, that at the given path, the perun pcs was reinitialized
     out, _ = capsys.readouterr()
-    assert f"Reinitialized existing Perun repository in {pcs_path}" in out
+    assert (
+        "Reinitialized existing perun repository" in common_kit.escape_ansi(out)
+        and f"{pcs_path}" in out
+    )
 
 
 @pytest.mark.usefixtures("cleandir")
@@ -123,9 +131,8 @@ def test_no_params_exists_pcs_in_parent(capsys):
 
     # Assert that user was warned, there is a super perun directory
     out, _ = capsys.readouterr()
-    assert (
-        out.split("\n")[0].strip() == f"warning: There exists super perun directory at {pcs_path}"
-    )
+    assert "There exists perun directory at" in out
+    assert f"{pcs_path}" in out
 
 
 @pytest.mark.usefixtures("cleandir")
@@ -169,8 +176,9 @@ def test_git_exists_already(capsys):
 
     # Capture the out and check if the message contained "Reinitialized"
     out, _ = capsys.readouterr()
-    expected = out.split("\n")[1].strip()
-    assert expected == f"Reinitialized existing Git repository in {pcs_path}"
+    assert (
+        "Reinitialized existing git repository" in common_kit.escape_ansi(out) and pcs_path in out
+    )
 
 
 @pytest.mark.usefixtures("cleandir")
@@ -256,11 +264,10 @@ def test_failed_init_vcs(monkeypatch, capsys):
     """
     pcs_path = os.getcwd()
 
-    def failing_init(*_):
-        """Errorous init, that returns false"""
-        return False
+    def raiseexc(*_):
+        raise GitCommandError("git", "pit")
 
-    monkeypatch.setattr("perun.vcs.init", failing_init)
+    monkeypatch.setattr("git.repo.base.Repo.init", raiseexc)
 
     # Try to call init, when patched init fails
     with pytest.raises(SystemExit):

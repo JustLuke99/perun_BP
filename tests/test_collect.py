@@ -6,9 +6,9 @@ import signal
 
 from click.testing import CliRunner
 
-import perun.vcs as vcs
 import perun.cli as cli
 import perun.logic.runner as run
+from perun.logic import pcs
 from perun.utils.common import common_kit
 import perun.collect.complexity.makefiles as makefiles
 import perun.collect.complexity.symbols as symbols
@@ -74,9 +74,9 @@ def test_collect_complexity(monkeypatch, pcs_with_root, complexity_collect_job):
     """Test collecting the profile using complexity collector"""
     before_object_count = test_utils.count_contents_on_path(pcs_with_root.get_path())[0]
 
-    cmd, args, work, collectors, posts, config = complexity_collect_job
-    head = vcs.get_minor_version_info(vcs.get_minor_head())
-    result = run.run_single_job(cmd, args, work, collectors, posts, [head], **config)
+    cmd, work, collectors, posts, config = complexity_collect_job
+    head = pcs.vcs().get_minor_version_info(pcs.vcs().get_minor_head())
+    result = run.run_single_job(cmd, work, collectors, posts, [head], **config)
     assert result == CollectStatus.OK
 
     # Assert that nothing was removed
@@ -96,7 +96,7 @@ def test_collect_complexity(monkeypatch, pcs_with_root, complexity_collect_job):
     # Fixme: Add check that the profile was correctly generated
 
     script_dir = os.path.join(os.path.split(__file__)[0], "sources", "collect_complexity", "target")
-    job_params = complexity_collect_job[5]["collector_params"]["complexity"]
+    job_params = complexity_collect_job[4]["collector_params"]["complexity"]
 
     files = [f"-f{os.path.abspath(os.path.join(script_dir, file))}" for file in job_params["files"]]
     rules = [f"-r{rule}" for rule in job_params["rules"]]
@@ -108,7 +108,6 @@ def test_collect_complexity(monkeypatch, pcs_with_root, complexity_collect_job):
         cli.collect,
         [
             f"-c{job_params['target_dir']}",
-            "-a test",
             "-w input",
             "complexity",
             f"-t{job_params['target_dir']}",
@@ -137,7 +136,7 @@ def test_collect_complexity(monkeypatch, pcs_with_root, complexity_collect_job):
         + samplings,
     )
     asserts.predicate_from_cli(result, result.exit_code == 0)
-    asserts.predicate_from_cli(result, "stored profile" in result.output)
+    asserts.predicate_from_cli(result, "Stored generated profile" in result.output)
 
 
 def test_collect_complexity_errors(monkeypatch, pcs_with_root, complexity_collect_job):
@@ -156,7 +155,7 @@ def test_collect_complexity_errors(monkeypatch, pcs_with_root, complexity_collec
 
     # Get the job.yml parameters
     script_dir = os.path.join(os.path.split(__file__)[0], "sources", "collect_complexity", "target")
-    job_params = complexity_collect_job[5]["collector_params"]["complexity"]
+    job_params = complexity_collect_job[4]["collector_params"]["complexity"]
 
     files = [f"-f{os.path.abspath(os.path.join(script_dir, file))}" for file in job_params["files"]]
     rules = [f"-r{rule}" for rule in job_params["rules"]]
@@ -264,7 +263,7 @@ def test_collect_memory(capsys, pcs_with_root, memory_collect_job, memory_collec
     """Test collecting the profile using the memory collector"""
     # Fixme: Add check that the profile was correctly generated
     before_object_count = test_utils.count_contents_on_path(pcs_with_root.get_path())[0]
-    head = vcs.get_minor_version_info(vcs.get_minor_head())
+    head = pcs.vcs().get_minor_version_info(pcs.vcs().get_minor_head())
     memory_collect_job += ([head],)
 
     run.run_single_job(*memory_collect_job)
@@ -283,10 +282,9 @@ def test_collect_memory(capsys, pcs_with_root, memory_collect_job, memory_collec
     assert len(profiles) == 1
     assert new_profile.endswith(".perf")
 
-    cmd, args, _, colls, posts, _ = memory_collect_job
+    cmd, _, colls, posts, _ = memory_collect_job
     run.run_single_job(
         cmd,
-        args,
         ["hello"],
         colls,
         posts,
@@ -344,7 +342,7 @@ def test_collect_memory(capsys, pcs_with_root, memory_collect_job, memory_collec
 def test_collect_memory_incorrect(monkeypatch, capsys, pcs_with_root, memory_collect_job):
     """Test collecting the profile using the memory collector"""
     # Fixme: Add check that the profile was correctly generated
-    head = vcs.get_minor_version_info(vcs.get_minor_head())
+    head = pcs.vcs().get_minor_version_info(pcs.vcs().get_minor_head())
     memory_collect_job += ([head],)
 
     # Patch os.path.isfile so for libmalloc.so it returns, that it is missing forcing recompilation
@@ -372,7 +370,7 @@ def test_collect_memory_incorrect(monkeypatch, capsys, pcs_with_root, memory_col
     # Try issue, when the libmalloc library is not there
     run.run_single_job(*memory_collect_job)
     out, _ = capsys.readouterr()
-    assert "Missing compiled dynamic library" in out
+    assert "Dynamic library libmalloc - not found" in common_kit.escape_ansi(out)
 
     # Try compiling again, but now with an error during the compilation
     return_code_for_make = 1
@@ -389,7 +387,7 @@ def test_collect_memory_incorrect(monkeypatch, capsys, pcs_with_root, memory_col
     monkeypatch.setattr("perun.collect.memory.parsing.parse_log", patched_parse)
     run.run_single_job(*memory_collect_job)
     _, err = capsys.readouterr()
-    assert "Problems while parsing log file: " in err
+    assert "Could not parse the log file due to" in err
 
     def patched_run(_):
         return 42, "dummy"
@@ -416,13 +414,13 @@ def test_collect_bounds(monkeypatch, pcs_with_root):
     test_dir = os.path.join(current_dir, "sources", "collect_bounds")
     sources = [os.path.join(test_dir, src) for src in os.listdir(test_dir) if src.endswith(".c")]
     single_sources = [os.path.join(test_dir, "partitioning.c")]
-    job = Job(Unit("bounds", {"sources": sources}), [], Executable("echo", "", "hello"))
+    job = Job(Unit("bounds", {"sources": sources}), [], Executable("echo hello"))
 
     status, prof = run.run_collector(job.collector, job)
     assert status == CollectStatus.OK
     assert len(prof["global"]["resources"]) == 19
 
-    job = Job(Unit("bounds", {"sources": single_sources}), [], Executable("echo", "", "hello"))
+    job = Job(Unit("bounds", {"sources": single_sources}), [], Executable("echo hello"))
 
     status, prof = run.run_collector(job.collector, job)
     assert status == CollectStatus.OK
@@ -457,14 +455,14 @@ def test_collect_time(monkeypatch, pcs_with_root, capsys):
     """Test collecting the profile using the time collector"""
     # Count the state before running the single job
     before_object_count = test_utils.count_contents_on_path(pcs_with_root.get_path())[0]
-    head = vcs.get_minor_version_info(vcs.get_minor_head())
+    head = pcs.vcs().get_minor_version_info(pcs.vcs().get_minor_head())
 
-    run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
 
     # Assert outputs
     out, err = capsys.readouterr()
     assert err == ""
-    assert "Successfully collected data from echo" in out
+    assert "Collecting by time from `echo hello` - succeeded" in common_kit.escape_ansi(out)
 
     # Assert that just one profile was created
     # + 1 for index
@@ -482,13 +480,13 @@ def test_collect_time(monkeypatch, pcs_with_root, capsys):
     assert new_profile.endswith(".perf")
 
     # Test running time with error
-    run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
 
     def collect_raising_exception(**kwargs):
         raise Exception("Something happened lol!")
 
     monkeypatch.setattr("perun.collect.time.run.collect", collect_raising_exception)
-    run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
     _, err = capsys.readouterr()
     assert "Something happened lol!" in err
 
@@ -498,23 +496,24 @@ def test_integrity_tests(capsys):
     mock_report = RunnerReport(complexity, "postprocessor", {"profile": {}})
     run.check_integrity_of_runner(complexity, "postprocessor", mock_report)
     out, err = capsys.readouterr()
-    assert "warning: complexity is missing postprocess() function" in out
+
+    assert "complexity is missing postprocess() function" in out
     assert "" == err
 
     mock_report = RunnerReport(complexity, "collector", {})
     run.check_integrity_of_runner(complexity, "collector", mock_report)
     out, err = capsys.readouterr()
-    assert "warning: collector complexity does not return any profile"
+    assert "collector complexity does not return any profile"
     assert "" == err
 
 
 def test_teardown(pcs_with_root, monkeypatch, capsys):
     """Basic tests for integrity of the teardown phase"""
-    head = vcs.get_minor_version_info(vcs.get_minor_head())
+    head = pcs.vcs().get_minor_version_info(pcs.vcs().get_minor_head())
     original_phase_f = run.run_phase_function
 
     # Assert that collection went OK and teardown returns error
-    status = run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    status = run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
     assert status == CollectStatus.OK
 
     def teardown_returning_error(report, phase):
@@ -525,7 +524,7 @@ def test_teardown(pcs_with_root, monkeypatch, capsys):
             original_phase_f(report, phase)
 
     monkeypatch.setattr("perun.logic.runner.run_phase_function", teardown_returning_error)
-    status = run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    status = run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
     assert status == CollectStatus.ERROR
     _, err = capsys.readouterr()
     assert "error in teardown" in err
@@ -542,7 +541,7 @@ def test_teardown(pcs_with_root, monkeypatch, capsys):
             report.update_from(*result)
 
     monkeypatch.setattr("perun.logic.runner.run_phase_function", teardown_not_screwing_things)
-    status = run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    status = run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
     assert status == CollectStatus.ERROR
     out, err = capsys.readouterr()
     assert "Teardown was executed" in out
@@ -556,7 +555,7 @@ def test_teardown(pcs_with_root, monkeypatch, capsys):
             original_phase_f(report, phase)
 
     monkeypatch.setattr("perun.logic.runner.run_phase_function", collect_firing_sigint)
-    status = run.run_single_job(["echo"], "", ["hello"], ["time"], [], [head])
+    status = run.run_single_job(["echo"], ["hello"], ["time"], [], [head])
     assert status == CollectStatus.ERROR
     out, err = capsys.readouterr()
-    assert "fatal: while collecting by time: received signal" in err
+    assert "while collecting by time: received signal" in err

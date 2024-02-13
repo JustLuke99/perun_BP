@@ -59,8 +59,9 @@ def compute(
                 result["method"] = method
                 analysis.append(result)
         except exceptions.GenericRegressionExceptionBase as exc:
-            log.info(f"unable to perform regression analysis on function '{chunk[2]}'.")
-            log.info(f"  - {exc}")
+            log.minor_info(
+                f"unable to perform regression analysis on function '{chunk[2]} due to: {exc}",
+            )
     # Compute the derived models
     for der in compute_derived(derived, analysis, **kwargs):
         analysis.append(der)
@@ -379,8 +380,8 @@ def _bisection_solve_half_model(
         try:
             for submodel in _bisection_step(x_pts, y_pts, computation_models, half_model):
                 yield submodel
+        # Too few submodel points to perform regression, use the half model instead
         except exceptions.InvalidPointsException:
-            # Too few submodel points to perform regression, use the half model instead
             yield half_model
     else:
         # The model is the same

@@ -1,11 +1,15 @@
+"""Collection of tests for testing the storage system of Perun"""
+from __future__ import annotations
+
+# Standard Imports
 import os
+
+# Third-Party Imports
 import pytest
 
-import perun.utils.streams as streams
-import perun.logic.store as store
-import perun.logic.index as index
-import perun.utils.exceptions as exceptions
-import perun.utils.timestamps as timestamps
+# Perun Imports
+from perun.logic import store, index
+from perun.utils import exceptions, timestamps, streams
 
 
 @pytest.mark.usefixtures("cleandir")
@@ -25,7 +29,7 @@ def test_malformed_indexes(tmpdir, monkeypatch, capsys):
         with pytest.raises(SystemExit):
             print(list(index.walk_index(index_handle)))
     _, err = capsys.readouterr()
-    assert "fatal: malformed index file: too many or too few objects registered in index" in err
+    assert "malformed index file: too many or too few objects registered in index" in err
     monkeypatch.setattr("perun.logic.store.read_int_from_handle", old_read_int)
 
     monkeypatch.setattr("perun.logic.index.INDEX_VERSION", index.INDEX_VERSION - 1)

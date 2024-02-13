@@ -18,8 +18,6 @@ from perun.utils.exceptions import (
     SignalReceivedException,
     NotPerunRepositoryException,
     SuppressedExceptions,
-    UnsupportedModuleException,
-    UnsupportedModuleFunctionException,
 )
 
 if TYPE_CHECKING:
@@ -153,7 +151,7 @@ def str_to_plural(count: int, verb: str) -> str:
     :param int count: number of the verbs
     :param str verb: name of the verb we are creating a plural for
     """
-    return str(count) + " " + verb + "s" if count != 1 else verb
+    return str(count) + " " + (verb + "s" if count != 1 else verb)
 
 
 def format_counter_number(count: int, max_number: int) -> str:
@@ -201,31 +199,6 @@ def is_variable_len_dict(list_value: list[dict[Any, Any]]) -> bool:
     return len(list_value) != 0 and all(
         isinstance(v, dict) and set(v.keys()) == {"name", "value"} for v in list_value
     )
-
-
-def get_key_with_aliases(
-    dictionary: dict[str, Any],
-    key_aliases: Iterable[str],
-    default: Optional[Any] = None,
-) -> Any:
-    """Safely returns the key in the dictionary that has several aliases.
-
-    This function assures the backward compatibility with older profiles, after renaming the keys.
-
-    :param dict dictionary: dictionary
-    :param tuple key_aliases: tuple of aliases of the same key in the dictionary, ordered
-        according to the order of the versions
-    :param object default: default value that is returned if none of the aliases is found in
-        the dictionary
-    :return: value of the key in the dictionary
-    :raises KeyError: if default is set to None and none of the keys in key_aliases is in the dict
-    """
-    for key in key_aliases:
-        if key in dictionary.keys():
-            return dictionary[key]
-    if default is not None:
-        return default
-    raise KeyError(f"None of the keys {key_aliases} found in the dictionary")
 
 
 def escape_ansi(line: str) -> str:
@@ -436,47 +409,6 @@ def partition_list(
         else:
             bad.append(item)
     return good, bad
-
-
-def dynamic_module_function_call(
-    package_name: str, module_name: str, fun_name: str, *args: Any, **kwargs: Any
-) -> Any:
-    """Dynamically calls the function from other package with given arguments
-
-    Looks up dynamically the module of the @p module_name inside the @p package_name
-    package and calls its function @p fun_name with positional *args and keyword
-    **kwargs.
-
-    In case the module or function is missing, error is returned and program ends
-    TODO: Add dynamic checking for the possible malicious code
-
-    :param str package_name: name of the package, where the function we are calling is
-    :param str module_name: name of the module, to which the function corresponds
-    :param str fun_name: name of the function we are dynamically calling
-    :param list args: list of non-keyword arguments
-    :param dict kwargs: dictionary of keyword arguments
-    :return: whatever the wrapped function returns
-    """
-    function_location_path = ".".join([package_name, module_name])
-    try:
-        module = get_module(function_location_path)
-        module_function = getattr(module, fun_name)
-        return module_function(*args, **kwargs)
-    # Simply pass these exceptions higher however with different flavours:
-    # 1) When Import Error happens, this means, that some module is not found in Perun hierarchy,
-    #   hence, we are trying to call some collector/visualizer/postprocessor/vcs, which is not
-    #   implemented in Perun.
-    #
-    # 2) When Attribute Error happens, this means, that we have found supported module, but, there
-    #   is some functionality, that is missing in the module.
-    #
-    # Why reraise the exceptions? Because it is up to the higher levels to catch these exceptions
-    # and handle the errors their way. It should be different in CLI and in GUI, and they should
-    # be caught in right places.
-    except ImportError:
-        raise UnsupportedModuleException(module_name)
-    except AttributeError:
-        raise UnsupportedModuleFunctionException(fun_name, function_location_path)
 
 
 def get_module(module_name: str) -> types.ModuleType:

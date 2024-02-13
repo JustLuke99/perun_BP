@@ -1,23 +1,25 @@
 """Basic tests of generators"""
+from __future__ import annotations
 
+# Standard Imports
+from subprocess import CalledProcessError
 import os
+
+# Third-Party Imports
 import pytest
 
-import perun.logic.config as config
-import perun.workload as workload
-import perun.logic.runner as runner
-import perun.utils.decorators as decorators
+# Perun Imports
+from perun import workload
+from perun.logic import config, runner
+from perun.utils import decorators
 from perun.utils.common import common_kit
-
 from perun.utils.structs import Unit, Executable, CollectStatus, Job
+from perun.workload.external_generator import ExternalGenerator
+from perun.workload.generator import WorkloadGenerator
 from perun.workload.integer_generator import IntegerGenerator
 from perun.workload.singleton_generator import SingletonGenerator
 from perun.workload.string_generator import StringGenerator
 from perun.workload.textfile_generator import TextfileGenerator
-from perun.workload.external_generator import ExternalGenerator
-from perun.workload.generator import WorkloadGenerator
-
-from subprocess import CalledProcessError
 
 
 def test_integer_generator():
@@ -151,7 +153,7 @@ def test_string_generator():
 def test_file_generator():
     """Tests file generator"""
     collector = Unit("time", {"warmup": 1, "repeat": 1})
-    executable = Executable("wc", "-l")
+    executable = Executable("wc -l")
     file_job = Job(collector, [], executable)
     file_generator = TextfileGenerator(file_job, 2, 5)
 
@@ -168,7 +170,7 @@ def _generate_temp_files(temp_dir, num):
     :return:
     """
     common_kit.touch_dir(temp_dir)
-    for i in range(num):
+    for _ in range(num):
         temp_file = os.path.join(temp_dir, f"tmp{num}_{num * 10}")
         with open(temp_file, "w") as tmp_handle:
             tmp_handle.write(("." * num * 10 + "\n") * num)
@@ -179,7 +181,7 @@ def test_external_generator(monkeypatch, capsys):
     """Tests external file generator"""
 
     collector = Unit("time", {"warmup": 1, "repeat": 1})
-    executable = Executable("wc", "-l")
+    executable = Executable("wc -l")
     file_job = Job(collector, [], executable)
     target_dir = os.path.join(os.getcwd(), "test")
     external_generator = ExternalGenerator(file_job, "generate", target_dir, "tmp{rows}_{cols}")

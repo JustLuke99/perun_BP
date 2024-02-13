@@ -4,22 +4,23 @@ Fixme: Add test for detached head
 
 Tests whether the perun correctly displays the status of the repository, with all of the extreme
 cases, etc."""
+from __future__ import annotations
 
+# Standard Imports
 import collections
 import json
 import os
 import re
 
+# Third-Party Imports
 import git
 import pytest
 
-import perun.logic.config as config
-import perun.logic.commands as commands
+# Perun Imports
+from perun.logic import config, commands
+from perun.utils import timestamps, decorators
 from perun.utils.common import common_kit
-import perun.utils.timestamps as timestamps
-import perun.utils.decorators as decorators
 from perun.utils.exceptions import NotPerunRepositoryException
-
 import perun.testing.utils as test_utils
 
 
@@ -217,7 +218,7 @@ def test_status_on_empty_repo(pcs_with_empty_git, capsys):
     # Test that nothing is printed on out and something is printed on err
     out, err = capsys.readouterr()
     assert out == ""
-    assert err != "" and "fatal" in err
+    assert err != "" and "error" in err.lower()
 
 
 def test_status_no_pending(pcs_full, capsys, stored_profile_pool):

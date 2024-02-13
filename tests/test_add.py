@@ -4,17 +4,19 @@ Tests basic functionality of adding profiles to initialized repositories, adding
 repositories, adding already added profiles, etc.
 """
 
+# Standard Imports
 import binascii
 import os
 
+# Third-Party Imports
 import git
-import perun.logic.store as store
-import perun.logic.index as index
 import pytest
 import termcolor
 
-import perun.logic.commands as commands
-import perun.utils.timestamps as timestamps
+# Perun Imports
+from perun.logic import store, index, commands
+from perun.utils import timestamps
+from perun.utils.common import common_kit
 from perun.utils.exceptions import (
     NotPerunRepositoryException,
     UnsupportedModuleException,
@@ -22,7 +24,6 @@ from perun.utils.exceptions import (
     EntryNotFoundException,
     VersionControlSystemException,
 )
-
 import perun.testing.utils as test_utils
 
 
@@ -125,10 +126,10 @@ def test_add_on_empty_repo(pcs_with_empty_git, valid_profile_pool, capsys):
     # Assert that the error message is OK
     _, err = capsys.readouterr()
     expected = (
-        "fatal: while fetching head minor version: "
+        "while fetching head minor version: "
         f"Reference at 'refs/heads/{git_default_branch_name}' does not exist"
     )
-    assert err.strip() == termcolor.colored(expected, "red", force_color=True)
+    assert termcolor.colored(expected, "red", force_color=True) in err.strip()
 
 
 def test_add_on_no_vcs(pcs_without_vcs, valid_profile_pool):
@@ -264,8 +265,9 @@ def test_add_wrong_profile(pcs_full, error_profile_pool, capsys):
     after_count = test_utils.count_contents_on_path(pcs_full.get_path())
     assert before_count == after_count
 
-    _, err = capsys.readouterr()
-    assert "notexisting.perf does not exist" in err
+    out, err = capsys.readouterr()
+    assert "Profile does not exist" in out
+    assert "Registration failed for - 1 profile" in common_kit.escape_ansi(err)
 
 
 def test_add_existing(pcs_full, valid_profile_pool, capsys):
