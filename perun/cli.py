@@ -52,7 +52,7 @@ import click
 from perun.cli_groups import check_cli, config_cli, run_cli, utils_cli
 from perun.logic import commands, pcs, config as perun_config
 from perun.utils import exceptions, log as perun_log
-from perun.utils.common import cli_kit
+from perun.utils.common import cli_kit, common_kit
 from perun.utils.external import commands as external_commands
 from perun.collect.trace.optimizations.structs import (
     Pipeline,
@@ -65,7 +65,6 @@ from perun.utils.exceptions import (
     UnsupportedModuleException,
     NotPerunRepositoryException,
     IncorrectProfileFormatException,
-    EntryNotFoundException,
     MissingConfigSectionException,
     ExternalEditorErrorException,
 )
@@ -108,6 +107,9 @@ DEV_MODE = False
     help="Disables the colored output.",
 )
 @click.option(
+    "--say-yes", "-y", default=False, is_flag=True, help="Says yes to every confirmation prompt"
+)
+@click.option(
     "--verbose",
     "-v",
     count=True,
@@ -139,6 +141,7 @@ DEV_MODE = False
 def cli(
     dev_mode: bool = False,
     no_color: bool = False,
+    say_yes: bool = False,
     verbose: int = 0,
     no_pager: bool = False,
     **_: Any,
@@ -169,12 +172,15 @@ def cli(
     # through --no-pager set by default to False you enable the paging
     global DEV_MODE
     DEV_MODE = dev_mode
+    common_kit.ALWAYS_CONFIRM = say_yes
     perun_log.SUPPRESS_PAGING = no_pager
     perun_log.COLOR_OUTPUT = not no_color
 
     # set the verbosity level of the log
     if perun_log.VERBOSITY < verbose:
         perun_log.VERBOSITY = verbose
+
+    commands.try_init()
 
 
 def configure_local_perun(perun_path: str) -> None:
@@ -399,7 +405,7 @@ def add(profile: list[str], minor: Optional[str], **kwargs: Any) -> None:
             "This will make the performance history of your project imprecise "
             "or simply wrong."
         )
-        if not kwargs["force"] or click.confirm(warning_message):
+        if not kwargs["force"] or common_kit.perun_confirm(warning_message):
             commands.add(profile, minor, **kwargs)
     except (NotPerunRepositoryException, IncorrectProfileFormatException) as exception:
         perun_log.error(f"error while adding profile: {str(exception)}")
