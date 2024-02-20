@@ -83,7 +83,7 @@ class BetterRepositorySelection:
                  and confidence is a float indicating the confidence level.
         """
         for file_diff in diff_data:
-            if file_diff["parser_name"] not in CONFIG["parsers"]:
+            if file_diff["parser_name"] not in RULE_CONFIG.keys():
                 continue
 
             if self._check_diff(file_diff["data"], file_diff["parser_name"]):
