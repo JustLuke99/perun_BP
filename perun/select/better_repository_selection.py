@@ -88,6 +88,7 @@ class BetterRepositorySelection:
                 continue
 
             diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
+            print("")
 
         # TODO continue
         return False
@@ -104,9 +105,11 @@ class BetterRepositorySelection:
         for key, value in file_data.items():
             if isinstance(value, list):
                 for item in value:
-                    return self._check_diff(item, parser_name)
+                    if (diff := self._check_diff(item, parser_name)):
+                        file_diff.append(diff)
 
-            file_diff.append(self.rule_class.check_rule(key, value, parser_name))
+            if (diff := self.rule_class.check_rule(key, value, parser_name)):
+                file_diff.append(diff)
 
         return file_diff
 

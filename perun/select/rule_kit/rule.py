@@ -39,3 +39,5 @@ class Rule:
         results = []
         for rule in RULE_CONFIG[parser_name]["rules"][key]:
             results.append({"weight": rule["weight"], "result": threshold_functions[rule["threshold_type"]](value, rule)})
+
+        return results
