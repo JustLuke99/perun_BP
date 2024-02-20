@@ -14,35 +14,22 @@ from perun.utils.structs import MinorVersion
 from perun.logic.stats import get_stats_of
 from perun.select.whole_repository_selection import WholeRepositorySelection
 from perun.vcs.git_repository import GitRepository
-
+from perun.select.rule_kit.rule import RULE_CONFIG, Rule
 
 CONFIG = {
     "compare_data_filter_parsers": True,
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
-    "parsers": {
-        "RadonParser": {
-            "active": True,
-            "number_of_lines": "from 10",
-            "number_of_logic_lines": "between 2 50",
-            "lines_of_code": "to 5",
-        },
-        "LizardParser": {
-            "active": True,
-            "average_code_complexity": "from 1",
-            "token_count": "from 4",
-            "start_line": "from 2",
-        },
-    },
 }
 
 
 # class BetterRepositorySelection(AbstractBaseSelection):
 class BetterRepositorySelection:
-    __slots__ = ("git_repo",)
+    __slots__ = ("git_repo", "rule_class")
 
     def __init__(self):
         self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
+        self.rule_class = Rule()
 
     # def should_check_version(self, head_version: MinorVersion) -> tuple[bool, float]:
     def should_check_version(self, target_version: MinorVersion) -> tuple[bool, float]:
@@ -54,9 +41,11 @@ class BetterRepositorySelection:
 
         git_repo = GitRepository(os.getcwd())
 
-        minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
+        # minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
+        minor_versions = [x for x in git_repo.walk_minor_versions("7acd059b05c984afea70692d4c25c29825d8d12c")]
 
-        # version_one, version_two = [
+
+        # version_one, version_two = [b
         #     x
         #     for x in git_repo.walk_minor_versions(head_hash)
         #     if x.checksum == "7acd059b05c984afea70692d4c25c29825d8d12c"
@@ -74,18 +63,18 @@ class BetterRepositorySelection:
     ) -> tuple[bool, float]:
         """We check all pairs of versions always when checking by whole repository selector
 
-        :param _: analysed target version
-        :param __: corresponding baseline version (compared against)
+        :param first_version: analysed target version
+        :param second_version: corresponding baseline version (compared against)
         :return: always true with 100% confidence
         """
         diff = self._get_version_diff(first_version, second_version)
 
-        should_check = self._manage_diff(diff_data=diff)
+        should_check = self._check_diff_thresholds(diff_data=diff)
         print("Hehe: ", should_check)
 
         return should_check
 
-    def check_diff_thresholds(self, diff_data):
+    def _check_diff_thresholds(self, diff_data):
         """
         Check if the differences in the given data exceed the thresholds defined in the configuration.
 
@@ -116,22 +105,23 @@ class BetterRepositorySelection:
                     if self._check_diff(item, parser_name):
                         return True
 
-            if key not in CONFIG["parsers"][parser_name]:
-                continue
 
-            rule = CONFIG["parsers"][parser_name][key]
-            range_type, num = rule.split(" ")
-            num2 = None
-
-            if range_type == "to":
-                if float(num) > float(value):
-                    return True
-            elif range_type == "from":
-                if float(num) < float(value):
-                    return True
-            elif range_type == "between":
-                if float(num) < float(value) < float(num2):
-                    return True
+            # if key not in CONFIG["parsers"][parser_name]:
+            #     continue
+            # 
+            # rule = CONFIG["parsers"][parser_name][key]
+            # range_type, num = rule.split(" ")
+            # num2 = None
+            #
+            # if range_type == "to":
+            #     if float(num) > float(value):
+            #         return True
+            # elif range_type == "from":
+            #     if float(num) < float(value):
+            #         return True
+            # elif range_type == "between":
+            #     if float(num) < float(value) < float(num2):
+            #         return True
 
         return False
 
@@ -179,10 +169,10 @@ class BetterRepositorySelection:
                 ):
                     continue
 
-                if parser["parser_name"] not in CONFIG["parsers"].keys():
+                if parser["parser_name"] not in RULE_CONFIG.keys():
                     continue
 
-                if not CONFIG["parsers"].get("parser_name", {}).get("active", True):
+                if not RULE_CONFIG[parser["parser_name"]]["active"]:
                     continue
 
                 second_version_parser_data = self._get_parser_data(

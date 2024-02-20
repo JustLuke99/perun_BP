@@ -11,3 +11,5 @@ py3.install_sources(
     perun_select_files,
     subdir: perun_select_dir,
 )
+
+subdir('rule_kit')
