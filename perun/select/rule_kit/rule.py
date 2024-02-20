@@ -18,9 +18,9 @@ RULE_CONFIG = {
 }
 
 threshold_functions = {
-    "from": lambda value, threshold: value > threshold,
-    "to": lambda value, threshold: value < threshold,
-    "between": lambda value, from_threshold, to_threshold: from_threshold < value < to_threshold,
+    "from": lambda value, rule: value > rule["from"],
+    "to": lambda value, rule: value < rule["to"],
+    "between": lambda value, rule: rule["from"] < value < rule["to"],
 }
 
 
@@ -38,6 +38,4 @@ class Rule:
 
         results = []
         for rule in RULE_CONFIG[parser_name]["rules"][key]:
-            results.append({"weight": rule["weight"], "result": threshold_functions[rule["threshold_type"]](value, rule["from"])})
-
-        print("")
+            results.append({"weight": rule["weight"], "result": threshold_functions[rule["threshold_type"]](value, rule)})

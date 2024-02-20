@@ -82,13 +82,14 @@ class BetterRepositorySelection:
         :return: Tuple (should_check, confidence) where should_check is a boolean indicating whether to check the version,
                  and confidence is a float indicating the confidence level.
         """
+        diff_result = []
         for file_diff in diff_data:
             if file_diff["parser_name"] not in RULE_CONFIG.keys():
                 continue
 
-            if self._check_diff(file_diff["data"], file_diff["parser_name"]):
-                return True
+            diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
 
+        # TODO continue
         return False
 
     def _check_diff(self, file_data, parser_name):
@@ -99,31 +100,15 @@ class BetterRepositorySelection:
         :param parser_name: Name of the parser for which the thresholds are checked.
         :return: Boolean indicating whether the thresholds are exceeded.
         """
+        file_diff = []
         for key, value in file_data.items():
             if isinstance(value, list):
                 for item in value:
-                    if self._check_diff(item, parser_name):
-                        return True
+                    return self._check_diff(item, parser_name)
 
+            file_diff.append(self.rule_class.check_rule(key, value, parser_name))
 
-            # if key not in CONFIG["parsers"][parser_name]:
-            #     continue
-            # 
-            # rule = CONFIG["parsers"][parser_name][key]
-            # range_type, num = rule.split(" ")
-            # num2 = None
-            #
-            # if range_type == "to":
-            #     if float(num) > float(value):
-            #         return True
-            # elif range_type == "from":
-            #     if float(num) < float(value):
-            #         return True
-            # elif range_type == "between":
-            #     if float(num) < float(value) < float(num2):
-            #         return True
-
-        return False
+        return file_diff
 
     def _get_version_diff(
         self, first_version: MinorVersion, second_version: MinorVersion
