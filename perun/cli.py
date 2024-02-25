@@ -1190,7 +1190,7 @@ def get_data_from_commits():
     git_repo = GitRepository(os.getcwd())
     head_hash = git_repo.get_minor_head()
     commits = [x for x in git_repo.walk_minor_versions(head_hash)]
-    commits = [commits[0], commits[60]]
+    commits = commits[:50][::4]
     for commit in commits:
         with CleanState() as _:
             git_repo.checkout(commit.checksum)
@@ -1271,6 +1271,6 @@ def launch_cli() -> None:
 
 
 if __name__ == "__main__":
-    #test_sel()
+    # test_sel()
     # get_data_from_commits()
     test_indicator()

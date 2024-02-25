@@ -1,3 +1,4 @@
+# if not weight, it will be default (1)
 RULE_CONFIG = {
     "RadonParser": {
         "active": True,
@@ -26,18 +27,29 @@ threshold_functions = {
 
 class Rule:
     @staticmethod
-    def check_rule(key, value, parser_name) -> None | bool:
+    def _check_if_should_be_checked(key, value, parser_name):
         if parser_name not in RULE_CONFIG.keys():
-            return
+            return True
 
         if not RULE_CONFIG[parser_name]["active"]:
-            return
+            return True
 
         if key not in RULE_CONFIG[parser_name]["rules"].keys():
+            return True
+
+        return False
+
+    def check_rule(self, key, value, parser_name) -> None | bool:
+        if self._check_if_should_be_checked(key, value, parser_name):
             return
 
         results = []
         for rule in RULE_CONFIG[parser_name]["rules"][key]:
-            results.append({"weight": rule["weight"], "result": threshold_functions[rule["threshold_type"]](value, rule)})
+            results.append(
+                {
+                    "weight": rule.get("weight", 1),
+                    "result": threshold_functions[rule["threshold_type"]](value, rule),
+                }
+            )
 
         return results
