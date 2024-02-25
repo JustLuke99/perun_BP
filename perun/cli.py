@@ -1271,6 +1271,6 @@ def launch_cli() -> None:
 
 
 if __name__ == "__main__":
-    # test_sel()
+    test_sel()
     # get_data_from_commits()
-    test_indicator()
+    # test_indicator()

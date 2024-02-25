@@ -49,8 +49,8 @@ class BetterRepositorySelection:
         version_one, version_two = [
             x
             for x in minor_versions
-            if x.checksum == "8e8449fd2a0504c9769bf2a53c3d72f621a2cdc7"
-            or x.checksum == "dd84fdff0c5f9a5e44b19273779e582e08b29ef9"
+            if x.checksum == "3a1d0413e29a0bef723a4b8eea44ddd2caf53ec5"
+            or x.checksum == "b38d03ed9a114eb800497b61ebbb5157e9768ce4"
         ]
         if len(minor_versions) < 2:
             exit()
