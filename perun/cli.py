@@ -78,6 +78,7 @@ from perun.indicators.indicator_manager import test_indicator_manager
 from perun.select.better_repository_selection import select_test
 from perun.vcs.git_repository import GitRepository
 from perun.vcs.vcs_kit import CleanState
+
 DEV_MODE = False
 
 
@@ -1172,7 +1173,7 @@ def fuzz_cmd(cmd: str, **kwargs: Any) -> None:
 
 @cli.command()
 def test_indicator():
-    test_indicator_manager()
+    test_indicator_manager("xd")
 
 
 @cli.command()
@@ -1181,8 +1182,7 @@ def test_sel():
     head_hash = git_repo.get_minor_head()
     commits = [x for x in git_repo.walk_minor_versions(head_hash)]
     for commit in commits:
-        with CleanState() as _:
-            select_test(commit)
+        select_test(commit)
 
 
 @cli.command()
@@ -1190,6 +1190,7 @@ def get_data_from_commits():
     git_repo = GitRepository(os.getcwd())
     head_hash = git_repo.get_minor_head()
     commits = [x for x in git_repo.walk_minor_versions(head_hash)]
+    commits = [commits[0], commits[60]]
     for commit in commits:
         with CleanState() as _:
             git_repo.checkout(commit.checksum)
@@ -1270,4 +1271,6 @@ def launch_cli() -> None:
 
 
 if __name__ == "__main__":
-    test_sel()
+    #test_sel()
+    # get_data_from_commits()
+    test_indicator()

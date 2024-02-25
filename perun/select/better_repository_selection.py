@@ -28,7 +28,8 @@ class BetterRepositorySelection:
     __slots__ = ("git_repo", "rule_class")
 
     def __init__(self):
-        self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
+        # self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
+        self.git_repo = GitRepository(os.getcwd())
         self.rule_class = Rule()
 
     # def should_check_version(self, head_version: MinorVersion) -> tuple[bool, float]:
@@ -42,19 +43,19 @@ class BetterRepositorySelection:
         git_repo = GitRepository(os.getcwd())
 
         # minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
-        minor_versions = [x for x in git_repo.walk_minor_versions("7acd059b05c984afea70692d4c25c29825d8d12c")]
+        minor_versions = [x for x in git_repo.walk_minor_versions(git_repo.get_minor_head())]
 
 
-        # version_one, version_two = [b
-        #     x
-        #     for x in git_repo.walk_minor_versions(head_hash)
-        #     if x.checksum == "7acd059b05c984afea70692d4c25c29825d8d12c"
-        #     or x.checksum == "1168e8e02858ae1ec389ff3e37df7fceed54bdff"
-        # ]
+        version_one, version_two = [
+            x
+            for x in minor_versions
+            if x.checksum == "17dc0483b7fcfa1d770bb61f9e6e486dbbbc4034"
+            or x.checksum == "e5612bbac5dff59f70e3cffbb3b4bd68493d352e"
+        ]
         if len(minor_versions) < 2:
             exit()
 
-        version_one, version_two = minor_versions[:2]
+        # version_one, version_two = minor_versions[:2]
 
         return self.should_check_versions(version_one, version_two)
 
