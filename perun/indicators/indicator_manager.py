@@ -76,6 +76,8 @@ class IndicatorsManager:
                     continue
 
                 parser_data = []
+                # TODO REMOVE IT
+                self.parsers = self.parsers[:2]
                 for code_parser in self.parsers:
                     if not any(file.endswith(ext) for ext in code_parser["supported_languages"]):
                         continue
