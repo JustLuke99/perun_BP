@@ -93,7 +93,8 @@ class IndicatorsManager:
 
                 self.data.append(
                     {
-                        "file_path": os.path.join(directory_name, file.replace(".bin", "")),
+                        # "file_path": os.path.join(directory_name, file.replace(".bin", "")),
+                        "file_path": directory_name.replace(root_directory, ""),
                         "file_type": file.rsplit(".")[-1],
                         "data": parser_data,
                     }
