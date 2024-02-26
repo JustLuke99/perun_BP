@@ -1,6 +1,7 @@
 # Standard Imports
 import os
 from typing import Iterator, List
+from itertools import chain
 
 # Third-Party Imports
 
@@ -20,6 +21,7 @@ CONFIG = {
     "compare_data_filter_parsers": True,
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
+    "find_diff_in": "folders_rec",  # "files", "folders", "project", "folders_rec"
 }
 
 
@@ -44,7 +46,6 @@ class BetterRepositorySelection:
 
         # minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
         minor_versions = [x for x in git_repo.walk_minor_versions(git_repo.get_minor_head())]
-
 
         version_one, version_two = [
             x
@@ -84,15 +85,133 @@ class BetterRepositorySelection:
                  and confidence is a float indicating the confidence level.
         """
         diff_result = []
-        for file_diff in diff_data:
-            if file_diff["parser_name"] not in RULE_CONFIG.keys():
+
+        if CONFIG["find_diff_in"] == "files":
+            for file_diff in diff_data:
+                if file_diff["parser_name"] not in RULE_CONFIG.keys():
+                    continue
+
+                diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
+        elif CONFIG["find_diff_in"] == "folders":
+            folder_diff = self._calculate_diff_of_folders(diff_data)
+            # TODO dodělat porovnávání pouze pro nějaké zanoření
+            for folder in folder_diff.keys():
+                for parser_name in folder_diff[folder].keys():
+                    diff_result.append(
+                        self._check_diff(folder_diff[folder][parser_name], parser_name)
+                    )
+        elif CONFIG["find_diff_in"] == "project":
+            # TODO dodělat
+            pass
+        elif CONFIG["find_diff_in"] == "folders_rec":
+            folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
+            # TODO dodělat porovnávání pouze pro nějaké zanoření
+            for folder in folder_rec_diff.keys():
+                for parser_name in folder_rec_diff[folder].keys():
+                    diff_result.append(
+                        self._check_diff(folder_rec_diff[folder][parser_name], parser_name)
+                    )
+
+        return self._evaluate_rules(diff_result)
+
+    def _evaluate_rules(self, diff_result):
+        """
+        Evaluate the rules based on the differences result.
+
+        This method calculates the total number of rules and the sum of weights for the rules with a True result.
+
+        :param diff_result: The differences result containing nested dictionaries/lists.
+        :type diff_result: list
+        """
+
+        def get_dicts(lst):
+            """
+            Extract dictionaries from a nested list of dictionaries/lists.
+
+            This function recursively extracts dictionaries from a nested structure of dictionaries/lists.
+
+            :param lst: The input nested list of dictionaries/lists.
+            :type lst: list
+            :return: A list of dictionaries extracted from the nested structure.
+            :rtype: list
+            """
+            dicts = []
+            for item in lst:
+                if isinstance(item, dict):
+                    dicts.append(item)
+                elif isinstance(item, list):
+                    dicts.extend(get_dicts(item))
+            return dicts
+
+        count = 0
+        true_rules = 0
+        for diff in diff_result:
+            diff_dict = get_dicts(diff)
+            for rule in diff_dict:
+                count += 1
+                if rule["result"]:
+                    true_rules += rule["weight"]
+
+        # TODO dodělat zda bude vyhodnocovoat podle tresholdu true_rules nebo to bude true_rules / count, případně něco jiného
+        print("")
+
+    def _calculate_diff_of_folders_recursively(self, diff_data):
+        diff_data = self._calculate_diff_of_folders(diff_data)
+
+        diff_rec = {}
+        folders_sorted = sorted(diff_data.keys(), key=lambda x: x.count("/"), reverse=True)
+        for folder in folders_sorted:
+            if folder not in diff_rec.keys():
+                diff_rec[folder] = diff_data[folder]
+
+            under_folders = [
+                s
+                for s in diff_rec.keys()
+                if folder in s and s != folder and folder.count("/") + 1 == s.count("/")
+            ]
+            if not under_folders:
                 continue
 
-            diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
-            print("")
+            for parser_name in diff_data[folder].keys():
+                for key in diff_data[folder][parser_name].keys():
+                    if isinstance(diff_data[folder][parser_name][key], list):
+                        diff_rec[folder][parser_name][key].extend(
+                            diff_data[folder][parser_name][key]
+                        )
+                    else:
+                        diff_rec[folder][parser_name][key] += diff_data[folder][parser_name][key]
 
-        # TODO continue
-        return False
+        return diff_rec
+
+    def _calculate_diff_of_folders(self, diff_data):
+        """
+        Calculate the differences for each folder based on the given data.
+
+        :param diff_data: List of dictionaries containing file differences.
+        :type diff_data: list[dict]
+        :return: Dictionary containing the differences for each folder.
+        :rtype: dict
+        """
+        diff_folders = {}
+        for file_diff in diff_data:
+            folder = file_diff["file_name"].rsplit("/", 1)[0]
+            if folder not in diff_folders.keys():
+                diff_folders[folder] = {}
+
+            if not file_diff["parser_name"] in diff_folders[folder]:
+                diff_folders[folder][file_diff["parser_name"]] = file_diff["data"]
+            else:
+                for key in diff_folders[folder][file_diff["parser_name"]].keys():
+                    if isinstance(diff_folders[folder][file_diff["parser_name"]][key], list):
+                        diff_folders[folder][file_diff["parser_name"]][key].extend(
+                            file_diff["data"][key]
+                        )
+                    else:
+                        diff_folders[folder][file_diff["parser_name"]][key] += file_diff["data"][
+                            key
+                        ]
+
+        return diff_folders
 
     def _check_diff(self, file_data, parser_name):
         """
@@ -106,10 +225,10 @@ class BetterRepositorySelection:
         for key, value in file_data.items():
             if isinstance(value, list):
                 for item in value:
-                    if (diff := self._check_diff(item, parser_name)):
+                    if diff := self._check_diff(item, parser_name):
                         file_diff.append(diff)
 
-            if (diff := self.rule_class.check_rule(key, value, parser_name)):
+            if diff := self.rule_class.check_rule(key, value, parser_name):
                 file_diff.append(diff)
 
         return file_diff
