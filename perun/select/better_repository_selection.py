@@ -21,8 +21,16 @@ CONFIG = {
     "compare_data_filter_parsers": True,
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
-    "find_diff_in": "folders_rec",  # "files", "folders", "project", "folders_rec"
+    "check_diff_thresholds": {
+        "find_diff_in": "folders",  # "files", "folders", "project", "folders_rec"
+        "immersion": {  # this can be active only for "folders" and "folders_rec"
+            "active": True,
+            "folder_immersion_level": 2,
+            "from": "root",  # "root", "end"
+        },
+    },
 }
+# imersion level - from: root/end
 
 
 # class BetterRepositorySelection(AbstractBaseSelection):
@@ -34,46 +42,52 @@ class BetterRepositorySelection:
         self.git_repo = GitRepository(os.getcwd())
         self.rule_class = Rule()
 
-    # def should_check_version(self, head_version: MinorVersion) -> tuple[bool, float]:
-    def should_check_version(self, target_version: MinorVersion) -> tuple[bool, float]:
+    def should_check_version(
+        self, target_version: MinorVersion | None = None
+    ) -> tuple[bool, float]:
         """We check all versions always when checking by whole repository selector
 
         :param target_version: analysed target version
         :return: always true with 100% confidence
         """
+        minor_versions = [
+            x
+            for x in self.git_repo.walk_minor_versions(
+                target_version.checksum if target_version else self.git_repo.get_minor_head()
+            )
+        ]
 
-        git_repo = GitRepository(os.getcwd())
-
-        # minor_versions = [x for x in git_repo.walk_minor_versions(target_version.checksum)]
-        minor_versions = [x for x in git_repo.walk_minor_versions(git_repo.get_minor_head())]
-
+        # FIXME delete it later
         version_one, version_two = [
             x
             for x in minor_versions
             if x.checksum == "3a1d0413e29a0bef723a4b8eea44ddd2caf53ec5"
             or x.checksum == "b38d03ed9a114eb800497b61ebbb5157e9768ce4"
         ]
+
         if len(minor_versions) < 2:
             exit()
 
+        # FIXME remove comment
         # version_one, version_two = minor_versions[:2]
 
         return self.should_check_versions(version_one, version_two)
 
     def should_check_versions(
-        self, first_version: MinorVersion, second_version: MinorVersion
+        self, target_version: MinorVersion, version_to_compare: MinorVersion
     ) -> tuple[bool, float]:
+        # FIXME fix return
         """We check all pairs of versions always when checking by whole repository selector
 
-        :param first_version: analysed target version
-        :param second_version: corresponding baseline version (compared against)
+        :param target_version: analysed target version
+        :param version_to_compare: corresponding baseline version (compared against)
         :return: always true with 100% confidence
         """
-        diff = self._get_version_diff(first_version, second_version)
+        diff = self._get_version_diff(target_version, version_to_compare)
 
+        # TODO add confidence
         should_check = self._check_diff_thresholds(diff_data=diff)
-        print("Hehe: ", should_check)
-
+        # TODO add confidence
         return should_check
 
     def _check_diff_thresholds(self, diff_data):
@@ -84,33 +98,57 @@ class BetterRepositorySelection:
         :return: Tuple (should_check, confidence) where should_check is a boolean indicating whether to check the version,
                  and confidence is a float indicating the confidence level.
         """
+
+        def calculate_immersion_level(folder, max_slashes):
+            """
+            Calculate the immersion level of a folder based on the number of slashes in its path.
+
+            :param folder: The folder path.
+            :param max_slashes: The maximum number of slashes in any folder path.
+            :return: True if the folder's immersion level meets the threshold, False otherwise.
+            """
+            immersion_config = CONFIG["check_diff_thresholds"]["immersion"]
+
+            if not immersion_config["active"]:
+                return True
+
+            if immersion_config["from"] == "root":
+                return (
+                    True
+                    if folder.count("/") <= immersion_config["folder_immersion_level"]
+                    else False
+                )
+            elif immersion_config["from"] == "end":
+                return (
+                    True
+                    if folder.count("/") >= max_slashes - immersion_config["folder_immersion_level"]
+                    else False
+                )
+            else:
+                raise Exception("Field 'from̈́' is not defined.")
+
         diff_result = []
 
-        if CONFIG["find_diff_in"] == "files":
+        if CONFIG["check_diff_thresholds"]["find_diff_in"] == "files":
             for file_diff in diff_data:
-                if file_diff["parser_name"] not in RULE_CONFIG.keys():
-                    continue
-
                 diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
-        elif CONFIG["find_diff_in"] == "folders":
-            folder_diff = self._calculate_diff_of_folders(diff_data)
-            # TODO dodělat porovnávání pouze pro nějaké zanoření
-            for folder in folder_diff.keys():
-                for parser_name in folder_diff[folder].keys():
-                    diff_result.append(
-                        self._check_diff(folder_diff[folder][parser_name], parser_name)
-                    )
-        elif CONFIG["find_diff_in"] == "project":
-            # TODO dodělat
-            pass
-        elif CONFIG["find_diff_in"] == "folders_rec":
+        elif CONFIG["check_diff_thresholds"]["find_diff_in"] == "project":
             folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
-            # TODO dodělat porovnávání pouze pro nějaké zanoření
-            for folder in folder_rec_diff.keys():
-                for parser_name in folder_rec_diff[folder].keys():
-                    diff_result.append(
-                        self._check_diff(folder_rec_diff[folder][parser_name], parser_name)
-                    )
+            for parser_name, data in folder_rec_diff[""].items():
+                diff_result.append(self._check_diff(data, parser_name))
+        elif CONFIG["check_diff_thresholds"]["find_diff_in"] in ("folders", "folders_rec"):
+            folder_diff = (
+                self._calculate_diff_of_folders_recursively(diff_data)
+                if CONFIG["check_diff_thresholds"]["find_diff_in"] == "folders_rec"
+                else self._calculate_diff_of_folders(diff_data)
+            )
+            max_slashes = max(path.count("/") for path in folder_diff.keys())
+            for folder, parsers in folder_diff.items():
+                if calculate_immersion_level(folder, max_slashes):
+                    for parser_name, data in parsers.items():
+                        diff_result.append(self._check_diff(data, parser_name))
+        else:
+            raise Exception("find_diff_in is not defined.")
 
         return self._evaluate_rules(diff_result)
 
@@ -192,9 +230,28 @@ class BetterRepositorySelection:
         :return: Dictionary containing the differences for each folder.
         :rtype: dict
         """
+
+        def reset_values_to_zero(d):
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    reset_values_to_zero(value)
+                elif isinstance(value, list):
+                    for item in value:
+                        reset_values_to_zero(item)
+                else:
+                    d[key] = 0
+
         diff_folders = {}
+
+        if not any(x["file_name"].count("/") == 1 for x in diff_data):
+            item_to_add = diff_data[0].copy()
+            item_to_add["file_name"] = "/" + item_to_add["file_name"].split("/")[-1]
+            reset_values_to_zero(item_to_add["data"])
+            diff_data.append(item_to_add)
+
         for file_diff in diff_data:
             folder = file_diff["file_name"].rsplit("/", 1)[0]
+
             if folder not in diff_folders.keys():
                 diff_folders[folder] = {}
 
@@ -228,7 +285,7 @@ class BetterRepositorySelection:
                     if diff := self._check_diff(item, parser_name):
                         file_diff.append(diff)
 
-            if diff := self.rule_class.check_rule(key, value, parser_name):
+            if diff := self.rule_class.evaluate_rule(key, value, parser_name):
                 file_diff.append(diff)
 
         return file_diff
@@ -346,13 +403,14 @@ class BetterRepositorySelection:
         return [item for item in data_list if file_path_to_find in item.get("file_path")]
 
 
-def _find_all_paths(data_list: List[dict]):
-    paths = []
-    for data in data_list:
-        if not (new_path := data["file_path"].rsplit("/", 1)[0]) in paths:
-            paths.append(new_path)
-
-    return [{"path": path, "data": []} for path in paths]
+# def _find_all_paths(data_list: List[dict]):
+#     paths = []
+#     for data in data_list:
+#         if not (new_path := data["file_path"].rsplit("/", 1)[0]) in paths:
+#             paths.append(new_path)
+#
+#     return [{"path": path, "data": []} for path in paths]
+#
 
 
 def select_test(minor_version):

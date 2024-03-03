@@ -6,7 +6,7 @@ RULE_CONFIG = {
             "lines_of_code": [{"threshold_type": "from", "from": 5, "weight": 1}],
             "blank": [{"threshold_type": "to", "to": 10, "weight": 2}],
             "cyclomatic_complexity": [
-                {"threshold_type": "between", "from": 3, "to": 6, "weight": 1}
+                {"threshold_type": "between", "from": 3, "to": 6}
             ],
         },
     },
@@ -39,7 +39,7 @@ class Rule:
 
         return False
 
-    def check_rule(self, key, value, parser_name) -> None | bool:
+    def evaluate_rule(self, key, value, parser_name) -> None | bool:
         if self._check_if_should_be_checked(key, value, parser_name):
             return
 
