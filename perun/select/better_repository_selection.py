@@ -29,6 +29,7 @@ CONFIG = {
             "from": "root",  # "root", "end"
         },
     },
+    "evaluate_rules": "average", # "any", "average", "average_weighted"
 }
 # imersion level - from: root/end
 
@@ -37,9 +38,9 @@ CONFIG = {
 class BetterRepositorySelection:
     __slots__ = ("git_repo", "rule_class")
 
-    def __init__(self):
+    def __init__(self, repository_path: str = os.getcwd()) -> None:
         # self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
-        self.git_repo = GitRepository(os.getcwd())
+        self.git_repo = GitRepository(repository_path)
         self.rule_class = Rule()
 
     def should_check_version(
@@ -58,18 +59,18 @@ class BetterRepositorySelection:
         ]
 
         # FIXME delete it later
-        version_one, version_two = [
-            x
-            for x in minor_versions
-            if x.checksum == "3a1d0413e29a0bef723a4b8eea44ddd2caf53ec5"
-            or x.checksum == "b38d03ed9a114eb800497b61ebbb5157e9768ce4"
-        ]
+        # version_one, version_two = [
+        #     x
+        #     for x in minor_versions
+        #     if x.checksum == "3a1d0413e29a0bef723a4b8eea44ddd2caf53ec5"
+        #     or x.checksum == "b38d03ed9a114eb800497b61ebbb5157e9768ce4"
+        # ]
 
         if len(minor_versions) < 2:
             exit()
 
         # FIXME remove comment
-        # version_one, version_two = minor_versions[:2]
+        version_one, version_two = minor_versions[:2]
 
         return self.should_check_versions(version_one, version_two)
 
@@ -84,7 +85,6 @@ class BetterRepositorySelection:
         :return: always true with 100% confidence
         """
         diff = self._get_version_diff(target_version, version_to_compare)
-
         # TODO add confidence
         should_check = self._check_diff_thresholds(diff_data=diff)
         # TODO add confidence
@@ -190,8 +190,13 @@ class BetterRepositorySelection:
                 if rule["result"]:
                     true_rules += rule["weight"]
 
-        # TODO dodělat zda bude vyhodnocovoat podle tresholdu true_rules nebo to bude true_rules / count, případně něco jiného
-        print("")
+        # TODO improve this
+        if CONFIG["evaluate_rules"] == "any":
+            return (True, 1, diff_result) if true_rules > 0 else (False, diff_result)
+        elif CONFIG["evaluate_rules"] == "average":
+            return (True, true_rules / count, diff_result) if true_rules / count > 0.5 else (False, diff_result)
+        elif CONFIG["evaluate_rules"] == "average_weighted":
+            return (True, true_rules / count, diff_result) if true_rules / count > 0.7 else (False, diff_result)
 
     def _calculate_diff_of_folders_recursively(self, diff_data):
         diff_data = self._calculate_diff_of_folders(diff_data)

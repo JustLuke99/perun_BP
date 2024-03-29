@@ -78,7 +78,7 @@ from perun.indicators.indicator_manager import test_indicator_manager
 from perun.select.better_repository_selection import select_test
 from perun.vcs.git_repository import GitRepository
 from perun.vcs.vcs_kit import CleanState
-
+from perun.view.compare_version.plotlydash import run_plotlydash
 DEV_MODE = False
 
 
@@ -1186,15 +1186,22 @@ def test_sel():
 
 
 @cli.command()
+def run_visualization():
+    run_plotlydash()
+
+
+@cli.command()
 def get_data_from_commits():
-    git_repo = GitRepository(os.getcwd())
+    # git_repo_path = os.getcwd()
+    git_repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
+    git_repo = GitRepository(git_repo_path)
     head_hash = git_repo.get_minor_head()
     commits = [x for x in git_repo.walk_minor_versions(head_hash)]
-    commits = commits[:50][::4]
-    for commit in commits:
-        with CleanState() as _:
+    # commits = commits[:50][::4]
+    with CleanState() as _:
+        for commit in commits:
             git_repo.checkout(commit.checksum)
-            test_indicator_manager(commit.checksum)
+            test_indicator_manager(commit.checksum, git_repo_path)
 
 
 def init_unit_commands(lazy_init: bool = True) -> None:
@@ -1223,6 +1230,7 @@ cli.add_command(utils_cli.utils_group)
 cli.add_command(test_indicator)
 cli.add_command(test_sel)
 cli.add_command(get_data_from_commits)
+cli.add_command(run_visualization)
 
 
 def launch_cli_in_dev_mode() -> None:
@@ -1271,6 +1279,7 @@ def launch_cli() -> None:
 
 
 if __name__ == "__main__":
-    test_sel()
+    run_visualization()
+    # test_sel()
     # get_data_from_commits()
     # test_indicator()

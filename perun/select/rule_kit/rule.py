@@ -49,6 +49,10 @@ class Rule:
                 {
                     "weight": rule.get("weight", 1),
                     "result": threshold_functions[rule["threshold_type"]](value, rule),
+                    "rule": rule,
+                    "parser_name": parser_name,
+                    "key": key,
+                    "value": value,
                 }
             )
 

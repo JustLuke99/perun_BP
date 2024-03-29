@@ -43,7 +43,7 @@ class IndicatorsManager:
         self._load_indicators()
 
     def parse(
-        self, root_directory: str, ignore_files: list = [], ignore_folders: list = []
+        self, root_directory: str = os.getcwd(), ignore_files: list = [], ignore_folders: list = []
     ) -> None:
         """
         Parses code files in the specified root directory using loaded parsers.
@@ -199,13 +199,18 @@ class IndicatorsManager:
         return True if "executable" in get_file_type(file_path.replace(".bin", "")) else False
 
 
-def test_indicator_manager(hash):
+def test_indicator_manager(hash, git_repo_path):
     IGNORE_FOLDERS = ["venv", "idea"]
     IGNORE_FILES = ["meson.build"]
     # FOLDER = "./test_files/"
     FOLDER = "."
     parser = IndicatorsManager(vsc_version=hash)
-    parser.parse(FOLDER, ignore_files=IGNORE_FILES, ignore_folders=IGNORE_FOLDERS)
+    parser.parse(
+        git_repo_path,
+        ignore_files=IGNORE_FILES,
+        ignore_folders=IGNORE_FOLDERS,
+        # root_directory=git_repo_path,
+    )
 
 
 # test_indicator_manager()
