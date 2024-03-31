@@ -1,20 +1,20 @@
 import os
 import random
 import time
-from datetime import datetime
 
 import dash
 import dash_cytoscape as cyto
 import git
+import matplotlib.colors as mcolors
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
+
 from perun.select.better_repository_selection import BetterRepositorySelection
 from perun.vcs.git_repository import GitRepository
 
-
 app = dash.Dash()
-repo_path = "/home/lukas/PycharmProjects/You-are-Pythonista"
-# repo_path = os.getcwd()
+# repo_path = "/home/lukas/PycharmProjects/You-are-Pythonista"
+repo_path = os.getcwd()
 # repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
 # repo_path = "/home/luke/PycharmProjects/perun"
 # repo_path = "C:\\Users\\lukas\\PycharmProjects\\perun"
@@ -34,17 +34,17 @@ branches_trans = {}
 branches_commits = {}
 visible_commits = []
 selection = BetterRepositorySelection(repo_path)
+max_confidence = 0
 
 
 def generate_commit_tree(max_commits: int) -> dict:
-    global newest_tag
+    global newest_tag, max_confidence
     newest_tag = ""
     return_data = {}
 
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
-        if not "b94de0d3d15776bbbcea988087cedd69040de586" in commit.hexsha:
-            continue
-        branch_name = repo.git.name_rev(commit.hexsha, name_only=True)  # .split("~")
+
+        branch_name = repo.git.name_rev(commit.hexsha, name_only=True)
         branch_name_full = branch_name
 
         if "Merge pull request" in commit.message:
@@ -54,12 +54,6 @@ def generate_commit_tree(max_commits: int) -> dict:
                 if znak_count < repo.git.name_rev(xd_commit.hexsha, name_only=True).count("^"):
                     branches_commits[xd_commit.hexsha] = branch_name_tmp
 
-            # branches_trans[branch_name] = branch_name_tmp
-            # branch_name = branch_name_tmp
-            #
-            # if branch_name in branches_trans:
-            #     branch_name = branches_trans[branch_name]
-        # else:
         if "tags" in branch_name:
             branch_name = branch_name.split("^", 1)[0].split("~", 1)[0]
         else:
@@ -82,23 +76,24 @@ def generate_commit_tree(max_commits: int) -> dict:
             author_checkbox.append(commit.author.email)
         try:
             ds, confidence, diff_result = selection.should_check_version(
-                    GitRepository(repo_path).get_minor_version_info(commit.hexsha)
-                )
+                GitRepository(repo_path).get_minor_version_info(commit.hexsha)
+            )
             print(ds, confidence)
         except:
             print("nende to")
             continue
+        if confidence > max_confidence:
+            max_confidence = confidence
         return_data[commit.hexsha] = {
             "parents": [parent.hexsha for parent in commit.parents if parent.hexsha],
-            "branch": branch_name,  # .split("~")[0]
-            # "tag": newest_tag,
+            "branch": branch_name,
             "author": commit.author.email,
             "branch_full": branch_name_full,
             "message": commit.message,
             "should_check": ds,
+            "confidence": confidence,
         }
 
-    print("Jsem na konci")
     return return_data
 
 
@@ -109,15 +104,6 @@ def generate_hex_color():
     hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
     return hex_color
 
-
-xdeekeoeko = []
-
-
-# @app.callback(Output("commit-graph", "elements"), Input("commit-graph", "tapNodeData"))
-# def njksfdg(tapNodeData):
-#     return []
-
-
 @app.callback(
     Output("commit-graph", "elements", allow_duplicate=True),
     [
@@ -125,6 +111,7 @@ xdeekeoeko = []
         Input("branch_and_tags_checklist", "value"),
         Input("authors_checklist", "value"),
         Input("commit-graph", "tapNodeData"),
+        Input("show/hide_confidence-button", "n_clicks"),
     ],
     prevent_initial_call=True,
     priority=99,
@@ -162,8 +149,6 @@ def display_selected_commit(tapNodeData):
     else:
         return html.Div(f"Selected commit hash: {selected_nodes}"), ""
 
-    # return html.Div(f"Selected commit hash: {selected_nodes}"), html.Div("")
-
 
 def commit_filtering(commits, selected_branches, selected_authors, num_commits):
     if selected_branches:
@@ -177,30 +162,29 @@ def commit_filtering(commits, selected_branches, selected_authors, num_commits):
         }.items()
 
     commits = [
-        {
-            "hexsha": key,
-            "parents": value["parents"],
-            "branch": value["branch"],
-            "branch_full": value["branch_full"],
-            "message": value["message"],
-        }
-        for key, value in commits
-    ][:num_commits]
+                  {
+                      "hexsha": key,
+                      "parents": value["parents"],
+                      "branch": value["branch"],
+                      "branch_full": value["branch_full"],
+                      "message": value["message"],
+                      "should_check": value["should_check"],
+                      "confidence": value["confidence"],
+                  }
+                  for key, value in commits
+              ][:num_commits]
 
     return commits
 
 
-commit_should_be_checked = []
-
-
-@app.callback(
-    Output("checked-button", "children"), Input("checked-button", "n_clicks"), priority=10
-)
-def tetetet(n_clicks):
-    if n_clicks:
-        return "Button clicked! Click count: {}".format(n_clicks)
-    else:
-        return "Click here to perform action"
+def interpolate_color(value):
+    global max_confidence
+    max_value = max_confidence
+    red = (max_value - value) / max_value * 255
+    green = value / max_value * 255
+    rgb_color = (red, green, 0)
+    hex_color = mcolors.rgb2hex([x / 255 for x in rgb_color])
+    return hex_color
 
 
 @app.callback(
@@ -210,18 +194,18 @@ def tetetet(n_clicks):
         Input("branch_and_tags_checklist", "value"),
         Input("authors_checklist", "value"),
         Input("commit-graph", "tapNodeData"),
-        Input("checked-button", "n_clicks"),
+        Input("show/hide_confidence-button", "n_clicks"),
     ],
     priority=1,
 )
 def update_graph(
-    num_commits: int,
-    selected_branches: list,
-    selected_authors: list,
-    _,
-    n_clicks,
-    *args,
-    **kwargs,
+        num_commits: int,
+        selected_branches: list,
+        selected_authors: list,
+        _,
+        show_hide_confidence_n_clicks,
+        *args,
+        **kwargs,
 ) -> (list, list):
     time.sleep(0.1)
 
@@ -231,7 +215,7 @@ def update_graph(
 
     new_commits = commit_filtering(loaded_commits, selected_branches, selected_authors, num_commits)
     new_commit_hashes = {commit["hexsha"] for commit in new_commits.copy()}
-
+    show_confidence = False if show_hide_confidence_n_clicks % 2 == 0 else True
     new_branch_positions = {"x8494156e1qw56ewq16e5q": "?"}
     for commit in new_commits:
         if (branch := commit["branch"]) not in new_branch_positions:
@@ -250,17 +234,20 @@ def update_graph(
     new_nodes = []
     brach_x_position = {}
     for i, commit in enumerate(new_commits):
-        if selected_nodes:
-            if commit["hexsha"] in selected_nodes:
-                bg_color = "#02C7DE"
-            else:
-                bg_color = "#797979"
+        if show_confidence:
+            bg_color = interpolate_color(commit["confidence"])
         else:
-            bg_color = xd_branches.get(commit["branch"], {}).get("color", "#000000")
+            if selected_nodes:
+                if commit["hexsha"] in selected_nodes:
+                    bg_color = "#02C7DE"
+                else:
+                    bg_color = "#797979"
+            else:
+                bg_color = xd_branches.get(commit["branch"], {}).get("color", "#000000")
 
         if commit["branch"] not in brach_x_position:
             brach_x_position[commit["branch"]] = (
-                list(new_branch_positions.keys()).index(commit["branch"]) * 110
+                    list(new_branch_positions.keys()).index(commit["branch"]) * 110
             )
 
         x_position = brach_x_position[commit["branch"]]
@@ -377,7 +364,7 @@ app.layout = html.Div(
                     options=author_checkbox,
                     value=selected_authors_state,
                 ),
-                html.Button("Show if commits should be checked", id="checked-button"),
+                html.Button("Show/Hide confidence", id="show/hide_confidence-button", n_clicks=0),
             ],
             style={
                 "width": "25%",
@@ -411,5 +398,5 @@ def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
         # generating takes about 3sec for 100 commits
-        LOADED_COMMITS = generate_commit_tree(10)
+        LOADED_COMMITS = generate_commit_tree(50)
     app.run_server(debug=True)

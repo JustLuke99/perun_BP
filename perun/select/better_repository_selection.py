@@ -29,7 +29,7 @@ CONFIG = {
             "from": "root",  # "root", "end"
         },
     },
-    "evaluate_rules": "average", # "any", "average", "average_weighted"
+    "evaluate_rules": {"type": "average", "value": 0.03006}, # "any", "average", "average_weighted"
 }
 # imersion level - from: root/end
 
@@ -85,7 +85,6 @@ class BetterRepositorySelection:
         :return: always true with 100% confidence
         """
         diff = self._get_version_diff(target_version, version_to_compare)
-        print(diff)
         # TODO add confidence
         should_check = self._check_diff_thresholds(diff_data=diff)
         # TODO add confidence
@@ -192,11 +191,12 @@ class BetterRepositorySelection:
                     true_rules += rule["weight"]
 
         # TODO improve this
-        if CONFIG["evaluate_rules"] == "any":
+        if CONFIG["evaluate_rules"]["type"] == "any":
             return (True, 1, diff_result) if true_rules > 0 else (False, 0, diff_result)
-        elif CONFIG["evaluate_rules"] == "average":
-            return (True, true_rules / count, diff_result) if true_rules / count > 0.5 else (False, true_rules / count, diff_result)
-        elif CONFIG["evaluate_rules"] == "average_weighted":
+        elif CONFIG["evaluate_rules"]["type"] == "average":
+            return (True, true_rules / count, diff_result) if true_rules / count > CONFIG["evaluate_rules"]["value"] else (False, true_rules / count, diff_result)
+        # TODO add weighted average
+        elif CONFIG["evaluate_rules"]["type"] == "average_weighted":
             return (True, true_rules / count, diff_result) if true_rules / count > 0.7 else (False, true_rules / count, diff_result)
 
     def _calculate_diff_of_folders_recursively(self, diff_data):
