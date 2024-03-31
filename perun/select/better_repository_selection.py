@@ -85,6 +85,7 @@ class BetterRepositorySelection:
         :return: always true with 100% confidence
         """
         diff = self._get_version_diff(target_version, version_to_compare)
+        print(diff)
         # TODO add confidence
         should_check = self._check_diff_thresholds(diff_data=diff)
         # TODO add confidence
@@ -192,11 +193,11 @@ class BetterRepositorySelection:
 
         # TODO improve this
         if CONFIG["evaluate_rules"] == "any":
-            return (True, 1, diff_result) if true_rules > 0 else (False, diff_result)
+            return (True, 1, diff_result) if true_rules > 0 else (False, 0, diff_result)
         elif CONFIG["evaluate_rules"] == "average":
-            return (True, true_rules / count, diff_result) if true_rules / count > 0.5 else (False, diff_result)
+            return (True, true_rules / count, diff_result) if true_rules / count > 0.5 else (False, true_rules / count, diff_result)
         elif CONFIG["evaluate_rules"] == "average_weighted":
-            return (True, true_rules / count, diff_result) if true_rules / count > 0.7 else (False, diff_result)
+            return (True, true_rules / count, diff_result) if true_rules / count > 0.7 else (False, true_rules / count, diff_result)
 
     def _calculate_diff_of_folders_recursively(self, diff_data):
         diff_data = self._calculate_diff_of_folders(diff_data)

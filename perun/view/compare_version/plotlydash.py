@@ -1,3 +1,4 @@
+import os
 import random
 import time
 from datetime import datetime
@@ -10,8 +11,11 @@ from dash.dependencies import Input, Output, State
 from perun.select.better_repository_selection import BetterRepositorySelection
 from perun.vcs.git_repository import GitRepository
 
+
 app = dash.Dash()
-repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
+repo_path = "/home/lukas/PycharmProjects/You-are-Pythonista"
+# repo_path = os.getcwd()
+# repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
 # repo_path = "/home/luke/PycharmProjects/perun"
 # repo_path = "C:\\Users\\lukas\\PycharmProjects\\perun"
 # repo_path = "C:\\Users\\lukas\\PycharmProjects\\syncagent-server"
@@ -38,6 +42,8 @@ def generate_commit_tree(max_commits: int) -> dict:
     return_data = {}
 
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
+        if not "b94de0d3d15776bbbcea988087cedd69040de586" in commit.hexsha:
+            continue
         branch_name = repo.git.name_rev(commit.hexsha, name_only=True)  # .split("~")
         branch_name_full = branch_name
 
@@ -74,10 +80,14 @@ def generate_commit_tree(max_commits: int) -> dict:
 
         if commit.author.email not in author_checkbox:
             author_checkbox.append(commit.author.email)
-        ds, confidence, diff_result = selection.should_check_version(
-                GitRepository(repo_path).get_minor_version_info(commit.hexsha)
-            )
-        print(ds, confidence)
+        try:
+            ds, confidence, diff_result = selection.should_check_version(
+                    GitRepository(repo_path).get_minor_version_info(commit.hexsha)
+                )
+            print(ds, confidence)
+        except:
+            print("nende to")
+            continue
         return_data[commit.hexsha] = {
             "parents": [parent.hexsha for parent in commit.parents if parent.hexsha],
             "branch": branch_name,  # .split("~")[0]
@@ -88,6 +98,7 @@ def generate_commit_tree(max_commits: int) -> dict:
             "should_check": ds,
         }
 
+    print("Jsem na konci")
     return return_data
 
 
@@ -400,5 +411,5 @@ def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
         # generating takes about 3sec for 100 commits
-        LOADED_COMMITS = generate_commit_tree(50)
+        LOADED_COMMITS = generate_commit_tree(10)
     app.run_server(debug=True)

@@ -1192,8 +1192,8 @@ def run_visualization():
 
 @cli.command()
 def get_data_from_commits():
-    # git_repo_path = os.getcwd()
-    git_repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
+    git_repo_path = os.getcwd()
+    # git_repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
     git_repo = GitRepository(git_repo_path)
     head_hash = git_repo.get_minor_head()
     commits = [x for x in git_repo.walk_minor_versions(head_hash)]
