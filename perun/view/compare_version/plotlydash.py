@@ -231,7 +231,6 @@ def update_graph(
     time.sleep(0.1)
 
     global x_position, node_count, LOADED_COMMITS, visible_commits, COMPARE_VERSION, max_confidence
-    print(find_button_n_clicks)
     x_position, node_count = 0, 0
     loaded_commits = LOADED_COMMITS.copy().items()
 
@@ -253,43 +252,19 @@ def update_graph(
 
     xd_branches = new_branch_positions.copy()
 
+    if find_button_n_clicks % 2 != 0:
+        finding_suitable_versions_to_compare(new_commits)
+
+    new_nodes = create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence)
+    new_edges = create_edges(new_commits, new_commit_hashes, xd_branches)
+
+    visible_commits = [commit["hexsha"] for commit in new_commits]
+    return new_nodes + new_edges
+
+
+def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence):
     new_nodes = []
     brach_x_position = {}
-
-    # if COMPARE_VERSION:
-    if find_button_n_clicks % 2 != 0:
-        git_repo = GitRepository(repo_path)
-        skip = True
-
-        for commit in new_commits:
-            if commit["hexsha"] in selected_nodes:
-                skip = False
-                continue
-
-            if skip:
-                continue
-
-            try:
-                ds, confidence, diff_result = selection.should_check_versions(
-                    GitRepository(repo_path).get_minor_version_info(selected_nodes[0]),
-                    git_repo.get_minor_version_info(commit["hexsha"]),
-                )
-            except:
-                print("CHIBYCKA")
-                continue
-
-            if confidence > max_confidence:
-                max_confidence = confidence
-
-            commit["compare_with_version"] = {
-                "should_check": ds,
-                "confidence": confidence,
-                "diff_result": diff_result,
-            }
-
-        for commit in new_commits:
-            if "compare_with_version" in commit:
-                commit["bgcolor"] = interpolate_color(commit["compare_with_version"]["confidence"])
 
     for i, commit in enumerate(new_commits):
         if "bgcolor" in commit:
@@ -333,7 +308,11 @@ def update_graph(
 
         new_nodes.append(node)
 
-    new_edges = [
+    return new_nodes
+
+
+def create_edges(new_commits, new_commit_hashes, xd_branches):
+    return [
         {
             "data": {"source": parent, "target": commit["hexsha"]},
             "style": {
@@ -349,8 +328,42 @@ def update_graph(
         for parent in commit["parents"]
         if parent in new_commit_hashes
     ]
-    visible_commits = [commit["hexsha"] for commit in new_commits]
-    return new_nodes + new_edges
+
+
+def finding_suitable_versions_to_compare(new_commits):
+    global max_confidence, repo_path
+    git_repo = GitRepository(repo_path)
+    skip = True
+
+    for commit in new_commits:
+        if commit["hexsha"] in selected_nodes:
+            skip = False
+            continue
+
+        if skip:
+            continue
+
+        try:
+            ds, confidence, diff_result = selection.should_check_versions(
+                GitRepository(repo_path).get_minor_version_info(selected_nodes[0]),
+                git_repo.get_minor_version_info(commit["hexsha"]),
+            )
+        except:
+            print("CHIBYCKA")
+            continue
+
+        if confidence > max_confidence:
+            max_confidence = confidence
+
+        commit["compare_with_version"] = {
+            "should_check": ds,
+            "confidence": confidence,
+            "diff_result": diff_result,
+        }
+
+    for commit in new_commits:
+        if "compare_with_version" in commit:
+            commit["bgcolor"] = interpolate_color(commit["compare_with_version"]["confidence"])
 
 
 @app.callback(
