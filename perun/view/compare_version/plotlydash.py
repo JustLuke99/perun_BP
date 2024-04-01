@@ -353,26 +353,26 @@ def update_graph(
     return new_nodes + new_edges
 
 
-# @app.callback(
-#     Output("find-button", "children"),
-#     [Input("find-button", "n_clicks")],
-#     [State("commit-graph", "tapNodeData")],
-# )
-# def update_button_text(n_clicks, tapNodeData):
-#     global COMPARE_VERSION
-#     if n_clicks is None:  # Zkontrolujte, zda je n_clicks None při prvním zobrazení stránky
-#         return "TESTIK"
-#     if n_clicks % 2 == 0:
-#         COMPARE_VERSION = False
-#         return "Click here to find a suitable versions to compare"
-#     else:
-#         COMPARE_VERSION = True
-#         return "Hide compared versions"
-#     # if not n_clicks:
-#     #     return "Click here to find a suitable version to compare"
-#     #
-#     # # TODO - do something with the selected nodes
-#     # return f"Find another suitable version {n_clicks}"
+@app.callback(
+    Output("find-button", "children"),
+    [Input("find-button", "n_clicks")],
+    [State("commit-graph", "tapNodeData")],
+)
+def update_button_text(n_clicks, tapNodeData):
+    # global COMPARE_VERSION
+    # if n_clicks is None:  # Zkontrolujte, zda je n_clicks None při prvním zobrazení stránky
+    #     return "TESTIK"
+    if n_clicks % 2 == 0:
+        # COMPARE_VERSION = False
+        return "Click here to find a suitable versions to compare"
+    else:
+        # COMPARE_VERSION = True
+        return "Hide compared versions"
+    # if not n_clicks:
+    #     return "Click here to find a suitable version to compare"
+    #
+    # # TODO - do something with the selected nodes
+    # return f"Find another suitable version {n_clicks}"
 
 
 app.layout = html.Div(
