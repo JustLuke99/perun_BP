@@ -2,9 +2,10 @@ import importlib
 import os
 from datetime import datetime
 import sys
-from perun.logic.stats import add_stats
+from perun.logic.stats import add_stats, get_stats_of
 import magic
 from perun.vcs.git_repository import GitRepository
+from perun.utils.exceptions import VersionControlSystemException
 
 
 class IndicatorsManager:
@@ -58,6 +59,19 @@ class IndicatorsManager:
         """
         # root_directory = "/home/luke/PycharmProjects/perun_BP/perun/indicators/test_files"
         root_directory = os.getcwd()
+
+        try:
+            if get_stats_of(
+                "indicator_data",
+                minor_version=self.vcs_version,
+                stats_ids=[self.vcs_version],
+            ):
+                return
+        except VersionControlSystemException as e:
+            if "missing" not in str(e):
+                raise e
+        except Exception as e:
+            raise e
 
         for directory_name, _, files in os.walk(root_directory):
             if any(x in directory_name for x in ignore_folders):
