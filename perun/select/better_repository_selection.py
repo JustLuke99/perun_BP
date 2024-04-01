@@ -29,7 +29,7 @@ CONFIG = {
             "from": "root",  # "root", "end"
         },
     },
-    "evaluate_rules": {"type": "average", "value": 0.03006}, # "any", "average", "average_weighted"
+    "evaluate_rules": {"type": "average", "value": 0.03006},  # "any", "average", "average_weighted"
 }
 # imersion level - from: root/end
 
@@ -146,6 +146,10 @@ class BetterRepositorySelection:
             for folder, parsers in folder_diff.items():
                 if calculate_immersion_level(folder, max_slashes):
                     for parser_name, data in parsers.items():
+                        try:
+                            _ = data.items()
+                        except Exception as e:
+                            print(e)
                         diff_result.append(self._check_diff(data, parser_name))
         else:
             raise Exception("find_diff_in is not defined.")
@@ -194,10 +198,18 @@ class BetterRepositorySelection:
         if CONFIG["evaluate_rules"]["type"] == "any":
             return (True, 1, diff_result) if true_rules > 0 else (False, 0, diff_result)
         elif CONFIG["evaluate_rules"]["type"] == "average":
-            return (True, true_rules / count, diff_result) if true_rules / count > CONFIG["evaluate_rules"]["value"] else (False, true_rules / count, diff_result)
+            return (
+                (True, true_rules / count, diff_result)
+                if true_rules / count > CONFIG["evaluate_rules"]["value"]
+                else (False, true_rules / count, diff_result)
+            )
         # TODO add weighted average
         elif CONFIG["evaluate_rules"]["type"] == "average_weighted":
-            return (True, true_rules / count, diff_result) if true_rules / count > 0.7 else (False, true_rules / count, diff_result)
+            return (
+                (True, true_rules / count, diff_result)
+                if true_rules / count > 0.7
+                else (False, true_rules / count, diff_result)
+            )
 
     def _calculate_diff_of_folders_recursively(self, diff_data):
         diff_data = self._calculate_diff_of_folders(diff_data)
@@ -285,8 +297,14 @@ class BetterRepositorySelection:
         :return: Boolean indicating whether the thresholds are exceeded.
         """
         file_diff = []
+
         for key, value in file_data.items():
             if isinstance(value, list):
+                value_test = [value for value in value if value]
+                if value_test and all(isinstance(item, str) for item in value_test):
+                    if diff := self.rule_class.evaluate_rule(key, value, parser_name):
+                        file_diff.append(diff)
+
                 for item in value:
                     if diff := self._check_diff(item, parser_name):
                         file_diff.append(diff)
@@ -332,8 +350,19 @@ class BetterRepositorySelection:
             second_version_file = self._get_data_from_file(
                 file_path=file["file_path"], data=second_version_data[second_version.checksum]
             )
-
+            if not second_version_file:
+                print("Skipuju ^^")
             for parser in file["data"]:
+                if not second_version_file:
+                    file_diff.append(
+                        {
+                            "parser_name": parser["parser_name"],
+                            "file_name": file["file_path"],
+                            "data": parser["data"],
+                        }
+                    )
+                    continue
+
                 if (
                     CONFIG["compare_data_filter_parsers"]
                     and parser["parser_name"] not in CONFIG["compare_data_filter_parser_names"]
@@ -347,7 +376,7 @@ class BetterRepositorySelection:
                     continue
 
                 second_version_parser_data = self._get_parser_data(
-                    parser["parser_name"], second_version_file["data"]
+                    parser["parser_name"], second_version_file.get("data", [])
                 )
                 diff = compare_dicts(parser["data"], second_version_parser_data)
                 file_diff.append(

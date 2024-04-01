@@ -35,7 +35,7 @@ branches_commits = {}
 visible_commits = []
 selection = BetterRepositorySelection(repo_path)
 max_confidence = 0
-
+COMPARE_VERSION = False
 
 def generate_commit_tree(max_commits: int) -> dict:
     global newest_tag, max_confidence
@@ -43,7 +43,6 @@ def generate_commit_tree(max_commits: int) -> dict:
     return_data = {}
 
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
-
         branch_name = repo.git.name_rev(commit.hexsha, name_only=True)
         branch_name_full = branch_name
 
@@ -75,12 +74,13 @@ def generate_commit_tree(max_commits: int) -> dict:
         if commit.author.email not in author_checkbox:
             author_checkbox.append(commit.author.email)
         try:
+            print(f"Jdu zjistovat {commit.hexsha}")
             ds, confidence, diff_result = selection.should_check_version(
                 GitRepository(repo_path).get_minor_version_info(commit.hexsha)
             )
             print(ds, confidence)
-        except:
-            print("nende to")
+        except Exception as e:
+            print(f"nende to. {e}")
             continue
         if confidence > max_confidence:
             max_confidence = confidence
@@ -97,12 +97,24 @@ def generate_commit_tree(max_commits: int) -> dict:
     return return_data
 
 
+@app.callback(
+    Output("show/hide_confidence-button", "children"),
+    Input("show/hide_confidence-button", "n_clicks"),
+)
+def show_hide_confidence(n_clicks):
+    if n_clicks % 2 == 0:
+        return "Show confidence"
+    else:
+        return "Hide confidence"
+
+
 def generate_hex_color():
     r = random.randint(50, 215)
     g = random.randint(50, 215)
     b = random.randint(50, 215)
     hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
     return hex_color
+
 
 @app.callback(
     Output("commit-graph", "elements", allow_duplicate=True),
@@ -162,17 +174,17 @@ def commit_filtering(commits, selected_branches, selected_authors, num_commits):
         }.items()
 
     commits = [
-                  {
-                      "hexsha": key,
-                      "parents": value["parents"],
-                      "branch": value["branch"],
-                      "branch_full": value["branch_full"],
-                      "message": value["message"],
-                      "should_check": value["should_check"],
-                      "confidence": value["confidence"],
-                  }
-                  for key, value in commits
-              ][:num_commits]
+        {
+            "hexsha": key,
+            "parents": value["parents"],
+            "branch": value["branch"],
+            "branch_full": value["branch_full"],
+            "message": value["message"],
+            "should_check": value["should_check"],
+            "confidence": value["confidence"],
+        }
+        for key, value in commits
+    ][:num_commits]
 
     return commits
 
@@ -195,21 +207,22 @@ def interpolate_color(value):
         Input("authors_checklist", "value"),
         Input("commit-graph", "tapNodeData"),
         Input("show/hide_confidence-button", "n_clicks"),
+        Input("find-button", "n_clicks")
     ],
     priority=1,
 )
 def update_graph(
-        num_commits: int,
-        selected_branches: list,
-        selected_authors: list,
-        _,
-        show_hide_confidence_n_clicks,
-        *args,
-        **kwargs,
+    num_commits: int,
+    selected_branches: list,
+    selected_authors: list,
+    _,
+    show_hide_confidence_n_clicks,
+    *args,
+    **kwargs,
 ) -> (list, list):
     time.sleep(0.1)
 
-    global x_position, node_count, LOADED_COMMITS, visible_commits
+    global x_position, node_count, LOADED_COMMITS, visible_commits, COMPARE_VERSION
     x_position, node_count = 0, 0
     loaded_commits = LOADED_COMMITS.copy().items()
 
@@ -236,6 +249,9 @@ def update_graph(
     for i, commit in enumerate(new_commits):
         if show_confidence:
             bg_color = interpolate_color(commit["confidence"])
+        if COMPARE_VERSION:
+            ...
+            # TODO continue
         else:
             if selected_nodes:
                 if commit["hexsha"] in selected_nodes:
@@ -247,7 +263,7 @@ def update_graph(
 
         if commit["branch"] not in brach_x_position:
             brach_x_position[commit["branch"]] = (
-                    list(new_branch_positions.keys()).index(commit["branch"]) * 110
+                list(new_branch_positions.keys()).index(commit["branch"]) * 110
             )
 
         x_position = brach_x_position[commit["branch"]]
@@ -296,15 +312,18 @@ def update_graph(
     [State("commit-graph", "tapNodeData")],
 )
 def update_button_text(n_clicks, tapNodeData):
-    if not n_clicks:
-        return "Click here to find a suitable version to compare"
-
-    # TODO - do something with the selected nodes
-    return f"Find another suitable version {n_clicks}"
-
-
-def show_and_hide_if_commits_should_be_checked():
-    pass
+    global COMPARE_VERSION
+    if n_clicks % 2 == 0:
+        COMPARE_VERSION = True
+        return "Click here to find a suitable versions to compare"
+    else:
+        COMPARE_VERSION = False
+        return "Hide compared versions"
+    # if not n_clicks:
+    #     return "Click here to find a suitable version to compare"
+    #
+    # # TODO - do something with the selected nodes
+    # return f"Find another suitable version {n_clicks}"
 
 
 app.layout = html.Div(

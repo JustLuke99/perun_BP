@@ -5,7 +5,7 @@ import sys
 from perun.logic.stats import add_stats, get_stats_of
 import magic
 from perun.vcs.git_repository import GitRepository
-from perun.utils.exceptions import VersionControlSystemException
+from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFoundException
 
 
 class IndicatorsManager:
@@ -69,6 +69,9 @@ class IndicatorsManager:
                 return
         except VersionControlSystemException as e:
             if "missing" not in str(e):
+                raise e
+        except StatsFileNotFoundException as e:
+            if "does not exist" not in str(e):
                 raise e
         except Exception as e:
             raise e
