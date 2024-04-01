@@ -37,6 +37,7 @@ selection = BetterRepositorySelection(repo_path)
 max_confidence = 0
 COMPARE_VERSION = False
 
+
 def generate_commit_tree(max_commits: int) -> dict:
     global newest_tag, max_confidence
     newest_tag = ""
@@ -74,13 +75,13 @@ def generate_commit_tree(max_commits: int) -> dict:
         if commit.author.email not in author_checkbox:
             author_checkbox.append(commit.author.email)
         try:
-            print(f"Jdu zjistovat {commit.hexsha}")
+            # print(f"Jdu zjistovat {commit.hexsha}")
             ds, confidence, diff_result = selection.should_check_version(
                 GitRepository(repo_path).get_minor_version_info(commit.hexsha)
             )
-            print(ds, confidence)
+            # print(ds, confidence)
         except Exception as e:
-            print(f"nende to. {e}")
+            # print(f"nende to. {e}")
             continue
         if confidence > max_confidence:
             max_confidence = confidence
@@ -124,6 +125,7 @@ def generate_hex_color():
         Input("authors_checklist", "value"),
         Input("commit-graph", "tapNodeData"),
         Input("show/hide_confidence-button", "n_clicks"),
+        Input("find-button", "n_clicks"),
     ],
     prevent_initial_call=True,
     priority=99,
@@ -151,7 +153,12 @@ def display_selected_commit(tapNodeData):
     if len(selected_nodes) == 1:
         return (
             html.Div(f"Selected commit hash: {selected_nodes}"),
-            html.Button("Click here to find a suitable version to compare", id="find-button"),
+            html.Div("")
+            # html.Button(
+            #     "Click here to find a suitable version to compare",
+            #     id="find-button",
+            #     style={"display": "none"},
+            # ),
         )
     if len(selected_nodes) == 2:
         return (
@@ -207,7 +214,7 @@ def interpolate_color(value):
         Input("authors_checklist", "value"),
         Input("commit-graph", "tapNodeData"),
         Input("show/hide_confidence-button", "n_clicks"),
-        Input("find-button", "n_clicks")
+        Input("find-button", "n_clicks"),
     ],
     priority=1,
 )
@@ -217,12 +224,14 @@ def update_graph(
     selected_authors: list,
     _,
     show_hide_confidence_n_clicks,
+    find_button_n_clicks,
     *args,
     **kwargs,
 ) -> (list, list):
     time.sleep(0.1)
 
-    global x_position, node_count, LOADED_COMMITS, visible_commits, COMPARE_VERSION
+    global x_position, node_count, LOADED_COMMITS, visible_commits, COMPARE_VERSION, max_confidence
+    print(find_button_n_clicks)
     x_position, node_count = 0, 0
     loaded_commits = LOADED_COMMITS.copy().items()
 
@@ -246,11 +255,49 @@ def update_graph(
 
     new_nodes = []
     brach_x_position = {}
+
+    # if COMPARE_VERSION:
+    if find_button_n_clicks % 2 != 0:
+        git_repo = GitRepository(repo_path)
+        skip = True
+
+        for commit in new_commits:
+            if commit["hexsha"] in selected_nodes:
+                skip = False
+                continue
+
+            if skip:
+                continue
+
+            try:
+                ds, confidence, diff_result = selection.should_check_versions(
+                    GitRepository(repo_path).get_minor_version_info(selected_nodes[0]),
+                    git_repo.get_minor_version_info(commit["hexsha"]),
+                )
+            except:
+                print("CHIBYCKA")
+                continue
+
+            if confidence > max_confidence:
+                max_confidence = confidence
+
+            commit["compare_with_version"] = {
+                "should_check": ds,
+                "confidence": confidence,
+                "diff_result": diff_result,
+            }
+
+        for commit in new_commits:
+            if "compare_with_version" in commit:
+                commit["bgcolor"] = interpolate_color(commit["compare_with_version"]["confidence"])
+
     for i, commit in enumerate(new_commits):
-        if show_confidence:
+        if "bgcolor" in commit:
+            bg_color = commit["bgcolor"]
+        elif show_confidence:
             bg_color = interpolate_color(commit["confidence"])
-        if COMPARE_VERSION:
-            ...
+        elif COMPARE_VERSION:
+            print("???")
             # TODO continue
         else:
             if selected_nodes:
@@ -306,24 +353,26 @@ def update_graph(
     return new_nodes + new_edges
 
 
-@app.callback(
-    Output("find-button", "children"),
-    [Input("find-button", "n_clicks")],
-    [State("commit-graph", "tapNodeData")],
-)
-def update_button_text(n_clicks, tapNodeData):
-    global COMPARE_VERSION
-    if n_clicks % 2 == 0:
-        COMPARE_VERSION = True
-        return "Click here to find a suitable versions to compare"
-    else:
-        COMPARE_VERSION = False
-        return "Hide compared versions"
-    # if not n_clicks:
-    #     return "Click here to find a suitable version to compare"
-    #
-    # # TODO - do something with the selected nodes
-    # return f"Find another suitable version {n_clicks}"
+# @app.callback(
+#     Output("find-button", "children"),
+#     [Input("find-button", "n_clicks")],
+#     [State("commit-graph", "tapNodeData")],
+# )
+# def update_button_text(n_clicks, tapNodeData):
+#     global COMPARE_VERSION
+#     if n_clicks is None:  # Zkontrolujte, zda je n_clicks None při prvním zobrazení stránky
+#         return "TESTIK"
+#     if n_clicks % 2 == 0:
+#         COMPARE_VERSION = False
+#         return "Click here to find a suitable versions to compare"
+#     else:
+#         COMPARE_VERSION = True
+#         return "Hide compared versions"
+#     # if not n_clicks:
+#     #     return "Click here to find a suitable version to compare"
+#     #
+#     # # TODO - do something with the selected nodes
+#     # return f"Find another suitable version {n_clicks}"
 
 
 app.layout = html.Div(
@@ -384,6 +433,7 @@ app.layout = html.Div(
                     value=selected_authors_state,
                 ),
                 html.Button("Show/Hide confidence", id="show/hide_confidence-button", n_clicks=0),
+                html.Button("To tu nemá být", id="find-button", n_clicks=0),
             ],
             style={
                 "width": "25%",
