@@ -22,7 +22,7 @@ CONFIG = {
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
     "check_diff_thresholds": {
-        "find_diff_in": "folders_rec",  # "files", "folders", "project", "folders_rec"
+        "find_diff_in": "files",  # "files", "folders", "project", "folders_rec"
         "immersion": {  # this can be active only for "folders" and "folders_rec"
             "active": True,
             "folder_immersion_level": 2,
@@ -31,7 +31,7 @@ CONFIG = {
     },
     "evaluate_rules": {"type": "average", "value": 0.03006},  # "any", "average", "average_weighted"
 }
-# imersion level - from: root/end
+
 
 
 # class BetterRepositorySelection(AbstractBaseSelection):
