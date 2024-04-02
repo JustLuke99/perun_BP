@@ -37,7 +37,6 @@ selection = BetterRepositorySelection(repo_path)
 max_confidence = 0
 COMPARE_VERSION = False
 
-
 def generate_commit_tree(max_commits: int) -> dict:
     global newest_tag, max_confidence
     newest_tag = ""
@@ -52,7 +51,7 @@ def generate_commit_tree(max_commits: int) -> dict:
             znak_count = branch_name.count("^")
             for xd_commit in commit.parents:
                 if znak_count < repo.git.name_rev(xd_commit.hexsha, name_only=True).count("^"):
-                    branches_commits[xd_commit.hexsha] = branch_name_tmp
+                    branches_commits[xd_commit.hexsha] = f"{branch_name_tmp} (branch deleted)"
 
         if "tags" in branch_name:
             branch_name = branch_name.split("^", 1)[0].split("~", 1)[0]
@@ -75,14 +74,15 @@ def generate_commit_tree(max_commits: int) -> dict:
         if commit.author.email not in author_checkbox:
             author_checkbox.append(commit.author.email)
         try:
-            # print(f"Jdu zjistovat {commit.hexsha}")
             ds, confidence, diff_result = selection.should_check_version(
                 GitRepository(repo_path).get_minor_version_info(commit.hexsha)
             )
-            # print(ds, confidence)
         except Exception as e:
-            # print(f"nende to. {e}")
-            continue
+            print(f"CHYBICKA: {e}")
+            ds = False
+            confidence = -1
+            diff_result = None
+
         if confidence > max_confidence:
             max_confidence = confidence
         return_data[commit.hexsha] = {
@@ -137,7 +137,7 @@ def delete_graph(*args, **kwargs):
 @app.callback(
     [
         Output("selected-commit-container", "children"),
-        Output("button-place", "children"),
+        # Output("button-place", "children"),
     ],
     [Input("commit-graph", "tapNodeData")],
     priority=2,
@@ -153,7 +153,7 @@ def display_selected_commit(tapNodeData):
     if len(selected_nodes) == 1:
         return (
             html.Div(f"Selected commit hash: {selected_nodes}"),
-            html.Div("")
+            # html.Div("")
             # html.Button(
             #     "Click here to find a suitable version to compare",
             #     id="find-button",
@@ -163,10 +163,10 @@ def display_selected_commit(tapNodeData):
     if len(selected_nodes) == 2:
         return (
             html.Div(f"Selected commit hash: {selected_nodes}"),
-            html.Button("Click here to compare selected versions", id="compare-button"),
+            # html.Button("Click here to compare selected versions", id="compare-button"),
         )
     else:
-        return html.Div(f"Selected commit hash: {selected_nodes}"), ""
+        return (html.Div(f"Selected commit hash: {selected_nodes}"),)  # ""
 
 
 def commit_filtering(commits, selected_branches, selected_authors, num_commits):
@@ -270,7 +270,9 @@ def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence
         if "bgcolor" in commit:
             bg_color = commit["bgcolor"]
         elif show_confidence:
-            bg_color = interpolate_color(commit["confidence"])
+            bg_color = (
+                interpolate_color(commit["confidence"]) if commit["confidence"] >= 0 else "#000000"
+            )
         elif COMPARE_VERSION:
             print("???")
             # TODO continue
@@ -350,7 +352,9 @@ def finding_suitable_versions_to_compare(new_commits):
             )
         except:
             print("CHIBYCKA")
-            continue
+            ds = False
+            confidence = -1
+            diff_result = None
 
         if confidence > max_confidence:
             max_confidence = confidence
@@ -363,7 +367,11 @@ def finding_suitable_versions_to_compare(new_commits):
 
     for commit in new_commits:
         if "compare_with_version" in commit:
-            commit["bgcolor"] = interpolate_color(commit["compare_with_version"]["confidence"])
+            commit["bgcolor"] = (
+                interpolate_color(commit["compare_with_version"]["confidence"])
+                if commit["compare_with_version"]["confidence"] >= 0
+                else "#000000"
+            )
 
 
 @app.callback(

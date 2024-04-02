@@ -193,6 +193,7 @@ class IndicatorsManager:
             stats_ids=[self.vcs_version],
             stats_contents=[self.data],
         )
+        print(f"Data saved. {self.vcs_version}")
 
     def _has_extension(self, file_path):
         """

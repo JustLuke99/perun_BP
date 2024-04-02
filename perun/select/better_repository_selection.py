@@ -22,7 +22,7 @@ CONFIG = {
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
     "check_diff_thresholds": {
-        "find_diff_in": "folders",  # "files", "folders", "project", "folders_rec"
+        "find_diff_in": "folders_rec",  # "files", "folders", "project", "folders_rec"
         "immersion": {  # this can be active only for "folders" and "folders_rec"
             "active": True,
             "folder_immersion_level": 2,
@@ -58,18 +58,9 @@ class BetterRepositorySelection:
             )
         ]
 
-        # FIXME delete it later
-        # version_one, version_two = [
-        #     x
-        #     for x in minor_versions
-        #     if x.checksum == "3a1d0413e29a0bef723a4b8eea44ddd2caf53ec5"
-        #     or x.checksum == "b38d03ed9a114eb800497b61ebbb5157e9768ce4"
-        # ]
-
         if len(minor_versions) < 2:
             exit()
 
-        # FIXME remove comment
         version_one, version_two = minor_versions[:2]
 
         return self.should_check_versions(version_one, version_two)
@@ -131,8 +122,9 @@ class BetterRepositorySelection:
 
         if CONFIG["check_diff_thresholds"]["find_diff_in"] == "files":
             for file_diff in diff_data:
-                diff_result.append(self._check_diff(file_diff["data"], file_diff["parser_name"]))
+                diff_result.append({"path": file_diff["file_name"], "data": self._check_diff(file_diff["data"], file_diff["parser_name"])})
         elif CONFIG["check_diff_thresholds"]["find_diff_in"] == "project":
+            # TODO fix path
             folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
             for parser_name, data in folder_rec_diff[""].items():
                 diff_result.append(self._check_diff(data, parser_name))
@@ -146,11 +138,9 @@ class BetterRepositorySelection:
             for folder, parsers in folder_diff.items():
                 if calculate_immersion_level(folder, max_slashes):
                     for parser_name, data in parsers.items():
-                        try:
-                            _ = data.items()
-                        except Exception as e:
-                            print(e)
-                        diff_result.append(self._check_diff(data, parser_name))
+                        diff_result.append(
+                            {"path": folder, "data": self._check_diff(data, parser_name)}
+                        )
         else:
             raise Exception("find_diff_in is not defined.")
 
@@ -188,6 +178,7 @@ class BetterRepositorySelection:
         count = 0
         true_rules = 0
         for diff in diff_result:
+            diff = diff["data"]
             diff_dict = get_dicts(diff)
             for rule in diff_dict:
                 count += 1
@@ -352,7 +343,7 @@ class BetterRepositorySelection:
             )
             # TODO skipuju
             # if not second_version_file:
-                # print("Skipuju ^^")
+            # print("Skipuju ^^")
             for parser in file["data"]:
                 if not second_version_file:
                     file_diff.append(
