@@ -33,7 +33,6 @@ CONFIG = {
 }
 
 
-
 # class BetterRepositorySelection(AbstractBaseSelection):
 class BetterRepositorySelection:
     __slots__ = ("git_repo", "rule_class")
@@ -122,7 +121,12 @@ class BetterRepositorySelection:
 
         if CONFIG["check_diff_thresholds"]["find_diff_in"] == "files":
             for file_diff in diff_data:
-                diff_result.append({"path": file_diff["file_name"], "data": self._check_diff(file_diff["data"], file_diff["parser_name"])})
+                diff_result.append(
+                    {
+                        "path": file_diff["file_name"],
+                        "data": self._check_diff(file_diff["data"], file_diff["parser_name"]),
+                    }
+                )
         elif CONFIG["check_diff_thresholds"]["find_diff_in"] == "project":
             # TODO fix path
             folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
@@ -293,8 +297,9 @@ class BetterRepositorySelection:
             if isinstance(value, list):
                 value_test = [value for value in value if value]
                 if value_test and all(isinstance(item, str) for item in value_test):
-                    if diff := self.rule_class.evaluate_rule(key, value, parser_name):
+                    if diff := self.rule_class.evaluate_rule(key, value_test, parser_name):
                         file_diff.append(diff)
+                    continue
 
                 for item in value:
                     if diff := self._check_diff(item, parser_name):

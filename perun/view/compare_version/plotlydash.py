@@ -149,7 +149,7 @@ def delete_graph(*args, **kwargs):
 
 @app.callback(
     [
-    Output("placeholder-output", "children"),
+        Output("placeholder-output", "children"),
     ],
     [Input("commit-graph", "tapNodeData")],
     priority=2,
@@ -381,6 +381,7 @@ def update_button_text(n_clicks, _):
     else:
         return "Hide compared versions"
 
+
 @app.callback(
     Output("show_statistics", "children"),
     Input("statistic-button", "n_clicks"),
@@ -420,15 +421,21 @@ def show_statistics(n_clicks):
             continue
         card = html.Details(
             [
-                html.Summary([
-                    html.Strong("Path: "),
-                    f"{item['path']} | ", html.Strong("True rules: "), f"{item['true_count']}"
-                ]),
+                html.Summary(
+                    [
+                        html.Strong("Path: "),
+                        f"{item['path']} | ",
+                        html.Strong("True rules: "),
+                        f"{item['true_count']}",
+                    ]
+                ),
                 html.Div(
                     [
                         html.P(
                             f"{str(item)}",
-                        ) if "False" in str(item) else html.Strong(f"{str(item)}")
+                        )
+                        if "False" in str(item)
+                        else html.Strong(f"{str(item)}")
                         for item in item["data"]
                     ],
                     style={"max-height": "200px", "overflow-y": "auto"},
@@ -540,7 +547,7 @@ app.layout = html.Div(
                 "vertical-align": "top",
             },
         ),
-        html.Div(id="placeholder-output")
+        html.Div(id="placeholder-output"),
     ]
 )
 
@@ -627,5 +634,5 @@ def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
         # generating takes about 3sec for 100 commits
-        LOADED_COMMITS = generate_commit_tree(8)
+        LOADED_COMMITS = generate_commit_tree(100)
     app.run_server(debug=True)

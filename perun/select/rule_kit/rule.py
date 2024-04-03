@@ -3,11 +3,10 @@ RULE_CONFIG = {
     "RadonParser": {
         "active": True,
         "rules": {
-            "lines_of_code": [{"threshold_type": "from", "from": 5, "weight": 1}],
-            "blank": [{"threshold_type": "from", "from": 3, "weight": 2}],
-            "cyclomatic_complexity": [
-                {"threshold_type": "between", "from": 1, "to": 6}
-            ],
+            "lines_of_code": [{"threshold_type": "value_from", "from": 5, "weight": 1}],
+            "blank": [{"threshold_type": "value_from", "from": 3, "weight": 2}],
+            "cyclomatic_complexity": [{"threshold_type": "value_between", "from": 1, "to": 6}],
+            "number_of_functions": [{"threshold_type": "value_between", "from": 2, "to": 7}],
         },
     },
     "LizardParser": {
@@ -19,10 +18,19 @@ RULE_CONFIG = {
 }
 
 threshold_functions = {
-    "from": lambda value, rule: value > rule["from"],
-    "to": lambda value, rule: value < rule["to"],
-    "between": lambda value, rule: rule["from"] < value < rule["to"],
+    "value_from": lambda value, rule: value > rule["from"],
+    "value_to": lambda value, rule: value < rule["to"],
+    "value_between": lambda value, rule: rule["from"] < value < rule["to"],
+    # "list_len_from": lambda value, rule: len(value) > rule["from"],
+    # "list_len_to": lambda value, rule: len(value) < rule["to"],
+    # "list_len_between": lambda value, rule: rule["from"] < len(value) < rule["to"],
 }
+
+# validations = {
+#     "list_len_from": lambda value: all(isinstance(item, str) for item in value),
+#     "list_len_to": lambda value: all(isinstance(item, str) for item in value),
+#     "list_len_between": lambda value: all(isinstance(item, str) for item in value),
+# }
 
 
 class Rule:
