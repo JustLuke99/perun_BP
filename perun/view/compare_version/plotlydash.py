@@ -13,13 +13,7 @@ from perun.select.better_repository_selection import BetterRepositorySelection
 from perun.vcs.git_repository import GitRepository
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-# repo_path = "/home/lukas/PycharmProjects/You-are-Pythonista"
 repo_path = os.getcwd()
-# repo_path = "/home/luke/PycharmProjects/You-are-Pythonista"
-# repo_path = "/home/luke/PycharmProjects/perun"
-# repo_path = "C:\\Users\\lukas\\PycharmProjects\\perun"
-# repo_path = "C:\\Users\\lukas\\PycharmProjects\\syncagent-server"
-# repo_path = "/home/luke/PycharmProjects/syncagent-server"
 repo = git.Repo(repo_path)
 repo_commits = list(repo.iter_commits())
 x_position, node_count = 0, 0
@@ -101,8 +95,37 @@ def generate_commit_tree(max_commits: int) -> dict:
 
 
 @app.callback(
+    Output("statistic-button", "style"),
+    Input("commit-graph", "tapNodeData"),
+    priority=1,
+)
+def show_hide_button(_):
+    global selected_nodes
+    time.sleep(0.1)
+    if len(selected_nodes) != 2:
+        return {"display": "none"}
+    else:
+        return {"display": "block"}
+
+
+@app.callback(
+    Output("find-button", "style"),
+    Input("commit-graph", "tapNodeData"),
+    priority=1,
+)
+def show_hide_button(_):
+    global selected_nodes
+    time.sleep(0.1)
+    if len(selected_nodes) != 1:
+        return {"display": "none"}
+    else:
+        return {"display": "block"}
+
+
+@app.callback(
     Output("show/hide_confidence-button", "children"),
     Input("show/hide_confidence-button", "n_clicks"),
+    priority=2,
 )
 def show_hide_confidence(n_clicks):
     if n_clicks % 2 == 0:
@@ -112,8 +135,7 @@ def show_hide_confidence(n_clicks):
 
 
 @app.callback(
-    Output("statistic-button", "children"),
-    Input("statistic-button", "n_clicks"),
+    Output("statistic-button", "children"), Input("statistic-button", "n_clicks"), priority=2
 )
 def show_hide_statistics(n_clicks):
     if n_clicks % 2 == 0:
@@ -143,7 +165,7 @@ def generate_hex_color():
     prevent_initial_call=True,
     priority=99,
 )
-def delete_graph(*args, **kwargs):
+def delete_graph(*_, **__):
     return []
 
 
@@ -374,6 +396,7 @@ def finding_suitable_versions_to_compare(new_commits):
     Output("find-button", "children"),
     [Input("find-button", "n_clicks")],
     [State("commit-graph", "tapNodeData")],
+    priority=2,
 )
 def update_button_text(n_clicks, _):
     if n_clicks % 2 == 0:
@@ -392,8 +415,8 @@ def show_statistics(n_clicks):
     if n_clicks % 2 == 0:
         return []
 
-    if len(selected_nodes) != 2:
-        return [html.P("Select two commits to compare")]
+    # if len(selected_nodes) != 2:
+    #     return [html.P("Select two commits to compare")]
 
     git_repo = GitRepository(repo_path)
     data, confidence, diff_result = selection.should_check_versions(
@@ -405,42 +428,116 @@ def show_statistics(n_clicks):
         count, true_count = 0, 0
         for rule_list in item["data"]:
             for rule in rule_list:
-                count += 1
                 if isinstance(rule, list):
-                    rule = rule[0]
-                if rule["result"]:
-                    true_count += 1
+                    for rul in rule:
+                        count += 1
+                        if rul["result"]:
+                            true_count += 1
+                else:
+                    count += 1
+                    if rule["result"]:
+                        true_count += 1
         item["count"] = count
         item["true_count"] = true_count
 
     sorted_diff_result = sorted(diff_result, key=lambda x: x["true_count"], reverse=True)
 
-    cards = [html.Div(f"Should be checked: {data} | Confidence: {confidence}")]
+    cards = [
+        html.H3("Difference statistics:", style={"margin-bottom": "5px"}),
+        html.Strong(f"Should be checked:"),
+        html.Div(f"{data}"),
+        html.Strong(f"Confidence:"),
+        html.Div(f"{confidence}"),
+        html.Strong(f"Files & rules:"),
+    ]
     for index, item in enumerate(sorted_diff_result):
         if item["true_count"] == 0:
             continue
+
+        parser_rules = {}
+        for rule_item in item["data"]:
+            for rules in rule_item:
+                if not isinstance(rules, list):
+                    rules = [rules]
+
+                for rule in rules:
+                    parser_name = rule.get("parser_name")
+                    parser_rules.setdefault(parser_name, []).append(
+                        rule
+                    )
+
+        rules_components = []
+        for parser_name, rules_list in parser_rules.items():
+            rules_components.append(
+                html.Details(
+                    [
+                        html.Summary(
+                            [
+                                html.Strong("Parser: "),
+                                f"{parser_name}",
+                            ]
+                        ),
+                        html.Div(
+                            [
+                                # html.P(
+                                #     str(item),
+                                #     style={
+                                #         "border-bottom": "1px solid lightgray",
+                                #     },
+                                # )
+                                # if "False" in str(item)
+                                # else html.Div(
+                                #     [
+                                #         html.Strong(
+                                #             str(item),
+                                #         ),
+                                #         # html.Br(),
+                                #         html.Div(
+                                #             "",
+                                #             style={
+                                #                 "border-bottom": "1px solid lightgray",
+                                #             },
+                                #         ),
+                                #     ]
+                                # )
+                                # for item in rules_list
+                                html.P(
+                                    str(item),
+                                    style={
+                                        "border-bottom": "1px solid lightgray",
+                                    },
+                                )
+                                for item in rules_list
+                                if "True" in str(item)
+                            ],  # Use the stored components
+                            style={"max-height": "200px", "overflow-y": "auto"},
+                        ),
+                    ]
+                )
+            )
+
         card = html.Details(
             [
                 html.Summary(
                     [
                         html.Strong("Path: "),
-                        f"{item['path']} | ",
+                        f"{item['path']}",
+                        html.Br(),
                         html.Strong("True rules: "),
                         f"{item['true_count']}",
                     ]
                 ),
                 html.Div(
-                    [
-                        html.P(
-                            f"{str(item)}",
-                        )
-                        if "False" in str(item)
-                        else html.Strong(f"{str(item)}")
-                        for item in item["data"]
-                    ],
-                    style={"max-height": "200px", "overflow-y": "auto"},
+                    rules_components,
+                    style={
+                        "max-height": "200px",
+                        "overflow-y": "auto",
+                        "background-color": "white",
+                    },
+                    className="details-container",
                 ),
-            ]
+            ],
+            style={"border": "1px solid lightgray", "padding": "10px"},
         )
         cards.append(card)
     return cards
@@ -448,50 +545,56 @@ def show_statistics(n_clicks):
 
 app.layout = html.Div(
     [
-        html.Div(
-            [
-                html.Label("Number of Commits to Display:"),
-                dcc.Input(id="num-commits-input", type="number", value=25),
-                html.Div(id="output-container"),
+        cyto.Cytoscape(
+            id="commit-graph",
+            layout={
+                "name": "preset",
+                "viewport": {"zoom": 1, "pan": {"x": 0, "y": 0}},
+                "boundingBox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
+            },
+            style={
+                "width": "35%",
+                "height": "100vh",
+                # "border": "1px solid black",
+            },
+            maxZoom=1.25,
+            minZoom=0.1,
+            stylesheet=[
+                {
+                    "selector": "node",
+                    "style": {"label": "data(label)", "text-wrap": "wrap"},
+                },
             ],
-            style={"width": "100%", "margin-bottom": "10px"},
         ),
         html.Div(
             [
-                cyto.Cytoscape(
-                    id="commit-graph",
-                    layout={
-                        "name": "preset",
-                        "viewport": {"zoom": 1, "pan": {"x": 0, "y": 0}},
-                        "boundingBox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
-                    },
+                html.Div(
+                    [
+                        html.H3("Number of Commits to Display:", style={"margin-bottom": "5px"}),
+                        dcc.Input(
+                            id="num-commits-input",
+                            type="number",
+                            value=25,
+                            style={
+                                "width": "13%",
+                                "border-style": "solid",
+                                "border-color": "#000000",
+                                "border-top-width": "0px",
+                                "border-right-width": "0px",
+                                "border-left-width": "0px",
+                                "border-bottom-width": "5px",
+                            },
+                        ),
+                        html.Div(id="output-container"),
+                    ],
                     style={
                         "width": "100%",
-                        "height": "100vh",
-                        "border": "1px solid black",
+                        "margin-bottom": "10px",
+                        "border-bottom": "1px solid lightgray",
                     },
-                    maxZoom=1.25,
-                    minZoom=0.1,
-                    stylesheet=[
-                        {
-                            "selector": "node",
-                            "style": {"label": "data(label)", "text-wrap": "wrap"},
-                        },
-                    ],
                 ),
-            ],
-            style={
-                "width": "32%",
-                "position": "relative",
-                "overflow": "hidden",
-                "display": "inline-block",
-                "vertical-align": "top",
-            },
-        ),
-        html.Div(
-            [
                 html.Div(id="button-place"),
-                html.Label("Branches & tags"),
+                html.H3("Branches & Tags", style={"margin-bottom": "5px"}),
                 html.Div(
                     dcc.Checklist(
                         id="branch_and_tags_checklist",
@@ -501,9 +604,11 @@ app.layout = html.Div(
                     style={
                         "max-height": "45vh",
                         "overflow-y": "auto",
+                        "border-bottom": "1px solid lightgray",
                     },
                 ),
-                html.Label("Authors"),
+                html.Br(),
+                html.H3("Authors", style={"margin-bottom": "5px"}),
                 html.Div(
                     dcc.Checklist(
                         id="authors_checklist",
@@ -513,126 +618,82 @@ app.layout = html.Div(
                     style={
                         "max-height": "45vh",
                         "overflow-y": "auto",
+                        "border-bottom": "1px solid lightgray",
                     },
                 ),
+                html.Br(),
                 html.Div(
                     [
-                        html.Button(
-                            "Show/Hide confidence", id="show/hide_confidence-button", n_clicks=0
+                        dbc.Button(
+                            "Show/Hide confidence",
+                            color="primary",
+                            outline=True,
+                            id="show/hide_confidence-button",
+                            n_clicks=0,
                         ),
                     ],
                     style={"display": "block", "margin-bottom": "10px"},
                 ),
                 html.Div(
                     [
-                        html.Button("To tu nemá být", id="find-button", n_clicks=0),
+                        dbc.Button(
+                            "To tu nemá být",
+                            outline=True,
+                            color="primary",
+                            id="find-button",
+                            n_clicks=0,
+                        ),
                     ],
                     style={"display": "block", "margin-bottom": "10px"},
                 ),
                 html.Div(
                     [
-                        html.Button("Show statistics", id="statistic-button", n_clicks=0),
+                        dbc.Button(
+                            "Show statistics",
+                            color="primary",
+                            outline=True,
+                            id="statistic-button",
+                            n_clicks=0,
+                        ),
                     ],
                     style={"display": "block", "margin-bottom": "10px"},
                 ),
-                html.Div(
-                    id="show_statistics",
-                ),
             ],
             style={
-                "width": "25%",
+                "width": "22%",
                 "position": "relative",
                 "overflow": "hidden",
                 "display": "inline-block",
                 "vertical-align": "top",
             },
         ),
-        html.Div(id="placeholder-output"),
-    ]
+        html.Div(
+            [
+                html.Div(
+                    id="show_statistics",
+                ),
+                html.Div(id="placeholder-output"),
+            ],
+            style={
+                "width": "43%",
+                "position": "relative",
+                "overflow": "hidden",
+                "display": "inline-block",
+                "vertical-align": "top",
+            },
+        ),
+    ],
+    style={
+        "display": "flex",
+        "flex-direction": "row",
+        "width": "100%",
+    },
 )
-
-# app.layout = dbc.Container(
-#     [
-#         dbc.Row(
-#             [
-#                 dbc.Col(
-#                     [
-#                         html.Label("Number of Commits to Display:"),
-#                         dcc.Input(id="num-commits-input", type="number", value=25),
-#                         html.Div(id="output-container", style={"margin-bottom": "10px"}),
-#                         dbc.Row(
-#                             [
-#                                 dbc.Col(
-#                                     cyto.Cytoscape(
-#                                         id="commit-graph",
-#                                         layout={
-#                                             "name": "preset",
-#                                             "viewport": {"zoom": 1, "pan": {"x": 0, "y": 0}},
-#                                             "boundingBox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
-#                                         },
-#                                         style={
-#                                             "width": "100%",
-#                                             "height": "100vh",  # Nastavení výšky na 100% výšky stránky
-#                                             "border": "1px solid black",
-#                                         },
-#                                         maxZoom=1.25,
-#                                         minZoom=0.1,
-#                                         stylesheet=[
-#                                             {
-#                                                 "selector": "node",
-#                                                 "style": {"label": "data(label)", "text-wrap": "wrap"},
-#                                             },
-#                                         ],
-#                                     ),
-#                                     width=9,
-#                                 ),
-#                                 dbc.Col(
-#                                     [
-#                                         html.Label("Branches & tags"),
-#                                         dcc.Checklist(
-#                                             id="branch_and_tags_checklist",
-#                                             options=branches_checkbox,
-#                                             value=selected_options_state,
-#                                             style={"max-height": "45vh", "overflow-y": "auto", "margin-bottom": "10px"},
-#                                         ),
-#                                         html.Label("Authors"),
-#                                         dcc.Checklist(
-#                                             id="authors_checklist",
-#                                             options=author_checkbox,
-#                                             value=selected_authors_state,
-#                                             style={"max-height": "45vh", "overflow-y": "auto", "margin-bottom": "10px"},
-#                                         ),
-#                                         html.Button("Show/Hide confidence", id="show/hide_confidence-button", n_clicks=0, style={"width": "100%", "margin-bottom": "10px"}),
-#                                         html.Button("To tu nemá být", id="find-button", n_clicks=0, style={"width": "100%", "margin-bottom": "10px"}),
-#                                         html.Button("Show statistics", id="statistic-button", n_clicks=0, style={"width": "100%", "margin-bottom": "10px"}),
-#                                     ],
-#                                     width=3,
-#                                 ),
-#                             ]
-#                         )
-#                     ],
-#                     width=12
-#                 ),
-#             ]
-#         ),
-#         dbc.Row(
-#             dbc.Col(
-#                 html.Div(id="selected-commit-container", style={"font-size": "24px"})
-#             )
-#         ),
-#         dbc.Row(
-#             dbc.Col(
-#                 html.Div(id="show_statistics")
-#             )
-#         ),
-#     ],
-#     fluid=True,
-# )
 
 
 def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
         # generating takes about 3sec for 100 commits
-        LOADED_COMMITS = generate_commit_tree(100)
+        LOADED_COMMITS = generate_commit_tree(15)
     app.run_server(debug=True)

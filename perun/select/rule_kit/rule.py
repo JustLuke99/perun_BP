@@ -4,15 +4,16 @@ RULE_CONFIG = {
         "active": True,
         "rules": {
             "lines_of_code": [{"threshold_type": "value_from", "from": 5, "weight": 1}],
-            "blank": [{"threshold_type": "value_from", "from": 3, "weight": 2}],
+            "blank": [{"threshold_type": "value_from", "from": -1, "weight": 2}],
             "cyclomatic_complexity": [{"threshold_type": "value_between", "from": 1, "to": 6}],
             "number_of_functions": [{"threshold_type": "value_between", "from": 2, "to": 7}],
         },
     },
     "LizardParser": {
-        "active": False,
+        "active": True,
         "rules": {
-            "token_count": [{"threshold_type": "from", "from": 2, "weight": 1}],
+            "token_count": [{"threshold_type": "value_from", "from": 2, "weight": 1}],
+            "average_length_of_code": [{"threshold_type": "value_from", "from": -1, "weight": 1}],
         },
     },
 }
