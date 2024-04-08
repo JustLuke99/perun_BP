@@ -7,8 +7,8 @@ from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFo
 CONFIG = {
     "parser_files": ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"],
     "IGNORE_FOLDERS": ["venv", "idea"],
-    "IGNORE_FILES": ["meson.build"],
-    "ROOT_FOLDER": os.getcwd(),
+    "IGNORE_FILES": ["meson.build", "__init__.py"],
+    "ROOT_FOLDER": os.getcwd() + "/dash_cytoscape",
 }
 
 
@@ -48,6 +48,10 @@ class IndicatorsManager:
         self._load_indicators()
 
     def _check_if_file_exists(self) -> None:
+        """
+        Checks if the file exists in the version control system and raises appropriate exceptions IF found.
+
+        """
         try:
             if get_stats_of(
                 "indicator_data",
@@ -78,7 +82,7 @@ class IndicatorsManager:
         self._check_if_file_exists()
 
         for directory_name, _, files in os.walk(CONFIG["ROOT_FOLDER"]):
-            if any(x in directory_name for x in CONFIG["ignore_folders"]):
+            if any(x in directory_name for x in CONFIG["IGNORE_FOLDERS"]):
                 continue
 
             for file in files:
@@ -89,13 +93,11 @@ class IndicatorsManager:
 
                 if not (
                     any(file.endswith(ext) for ext in self.supported_languages)
-                    and not any(x in file for x in CONFIG["ignore_files"])
+                    and not any(x in file for x in CONFIG["IGNORE_FILES"])
                 ):
                     continue
 
                 parser_data = []
-                # # TODO REMOVE IT
-                # self.parsers = self.parsers[:2]
                 for code_parser in self.parsers:
                     if not any(file.endswith(ext) for ext in code_parser["supported_languages"]):
                         continue
@@ -113,7 +115,6 @@ class IndicatorsManager:
 
                 self.data.append(
                     {
-                        # "file_path": os.path.join(directory_name, file.replace(".bin", "")),
                         "file_path": os.path.join(
                             directory_name.replace(CONFIG["ROOT_FOLDER"], ""), file
                         ),

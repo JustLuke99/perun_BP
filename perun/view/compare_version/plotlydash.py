@@ -318,7 +318,6 @@ def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence
                 "label": f"Commit hash: {commit['hexsha'][:6]} \n Branch name: {commit['branch']} \n Commit message: {commit_message}",
             },
             "position": {
-                # "x": list(new_branch_positions.keys()).index(commit["branch"]) * 110,
                 "x": x_position,
                 "y": 120 * i,
             },
