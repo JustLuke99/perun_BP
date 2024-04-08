@@ -16,7 +16,7 @@ class Data(TypedDict):
 
 
 class LizardParser(BaseParser):
-    supported_languages = ["py", "cpp"]  # TODO add "c"
+    supported_languages = ["py", "cpp", "c"]
 
     def parse(self, file_path: str) -> Data:
         data = lizard.analyze_file(file_path)

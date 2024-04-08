@@ -686,8 +686,8 @@ from datetime import datetime
 def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
-        # generating takes about 9.3sec for 100 commits
+        # generating takes about 6-10sec for 100 commits
         tt = datetime.now()
-        LOADED_COMMITS = generate_commit_tree(20)
+        LOADED_COMMITS = generate_commit_tree(100)
         print(datetime.now() - tt)
     app.run_server(debug=True)

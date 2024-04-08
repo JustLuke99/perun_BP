@@ -1,11 +1,15 @@
 import importlib
 import os
-from datetime import datetime
-import sys
 from perun.logic.stats import add_stats, get_stats_of
 import magic
-from perun.vcs.git_repository import GitRepository
 from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFoundException
+
+CONFIG = {
+    "parser_files": ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"],
+    "IGNORE_FOLDERS": ["venv", "idea"],
+    "IGNORE_FILES": ["meson.build"],
+    "ROOT_FOLDER": os.getcwd(),
+}
 
 
 class IndicatorsManager:
@@ -43,23 +47,7 @@ class IndicatorsManager:
 
         self._load_indicators()
 
-    def parse(
-        self, root_directory: str = os.getcwd(), ignore_files: list = [], ignore_folders: list = []
-    ) -> None:
-        """
-        Parses code files in the specified root directory using loaded parsers.
-
-        Parameters:
-        - root_directory (str): The root directory to start parsing from.
-        - ignore_files (list): A list of file names to ignore during parsing.
-        - ignore_folders (list): A list of folder names to ignore during parsing.
-
-        Returns:
-        - None
-        """
-        # root_directory = "/home/luke/PycharmProjects/perun_BP/perun/indicators/test_files"
-        root_directory = os.getcwd()
-
+    def _check_if_file_exists(self) -> None:
         try:
             if get_stats_of(
                 "indicator_data",
@@ -76,8 +64,21 @@ class IndicatorsManager:
         except Exception as e:
             raise e
 
-        for directory_name, _, files in os.walk(root_directory):
-            if any(x in directory_name for x in ignore_folders):
+    def parse(
+        self,
+    ) -> None:
+        """
+        Parses code files in the specified root directory using loaded parsers.
+
+        Parameters:
+        - None
+        Returns:
+        - None
+        """
+        self._check_if_file_exists()
+
+        for directory_name, _, files in os.walk(CONFIG["ROOT_FOLDER"]):
+            if any(x in directory_name for x in CONFIG["ignore_folders"]):
                 continue
 
             for file in files:
@@ -88,13 +89,13 @@ class IndicatorsManager:
 
                 if not (
                     any(file.endswith(ext) for ext in self.supported_languages)
-                    and not any(x in file for x in ignore_files)
+                    and not any(x in file for x in CONFIG["ignore_files"])
                 ):
                     continue
 
                 parser_data = []
-                # TODO REMOVE IT
-                self.parsers = self.parsers[:2]
+                # # TODO REMOVE IT
+                # self.parsers = self.parsers[:2]
                 for code_parser in self.parsers:
                     if not any(file.endswith(ext) for ext in code_parser["supported_languages"]):
                         continue
@@ -113,7 +114,9 @@ class IndicatorsManager:
                 self.data.append(
                     {
                         # "file_path": os.path.join(directory_name, file.replace(".bin", "")),
-                        "file_path": os.path.join(directory_name.replace(root_directory, ""), file),
+                        "file_path": os.path.join(
+                            directory_name.replace(CONFIG["ROOT_FOLDER"], ""), file
+                        ),
                         "file_type": file.rsplit(".")[-1],
                         "data": parser_data,
                     }
@@ -131,10 +134,7 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        # TODO find better place
-        parser_files = ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"]
-
-        for parser_file in parser_files:
+        for parser_file in CONFIG["parser_files"]:
             module_name = os.path.splitext(parser_file)[0]
             if "__init__" in module_name:
                 continue
@@ -152,9 +152,9 @@ class IndicatorsManager:
                 raise AttributeError(f"File {parser_file} doesnt have class.")
 
             parse_class = [
-                classX
-                for classX in classes
-                if classX != "BaseParser" and "parser" in classX.lower()
+                _class
+                for _class in classes
+                if _class != "BaseParser" and "parser" in _class.lower()
             ]
 
             parser_class = getattr(module, parse_class[0])
@@ -218,17 +218,4 @@ class IndicatorsManager:
 
 
 def test_indicator_manager(hash, git_repo_path):
-    IGNORE_FOLDERS = ["venv", "idea"]
-    IGNORE_FILES = ["meson.build"]
-    # FOLDER = "./test_files/"
-    FOLDER = "."
-    parser = IndicatorsManager(vsc_version=hash)
-    parser.parse(
-        git_repo_path,
-        ignore_files=IGNORE_FILES,
-        ignore_folders=IGNORE_FOLDERS,
-        # root_directory=git_repo_path,
-    )
-
-
-# test_indicator_manager()
+    IndicatorsManager(vsc_version=hash).parse()
