@@ -5,6 +5,7 @@ import time
 import dash
 import dash_cytoscape as cyto
 import git
+from git import Commit
 import matplotlib.colors as mcolors
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
@@ -16,71 +17,77 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 repo_path = os.getcwd()
 repo = git.Repo(repo_path)
 repo_commits = list(repo.iter_commits())
-x_position, node_count = 0, 0
 branches_checkbox, author_checkbox = [], []
-repo_tags = {tag.commit.hexsha: tag.name for tag in repo.tags}
-newest_tag = ""
 selected_nodes = []
 selected_options_state = []
 selected_authors_state = []
 LOADED_COMMITS = {}
-branches_trans = {}
-branches_commits = {}
-visible_commits = []
+
 selection = BetterRepositorySelection(repo_path)
 max_confidence = 0
-COMPARE_VERSION = False
+
+branches_trans = {}
+branches_commits = {}
+
+
+def build_branch_name(branch_name: str, commit: Commit) -> str:
+    if any(x in commit.message for x in ["Merge pull request", "Merge branch"]):
+        if "Merge pull request" in commit.message:
+            branch_name_tmp = commit.message.split("\n")[0].rsplit(" ", 1)[1]
+        elif "Merge branch" in commit.message:
+            branch_name_tmp = commit.message.split("'", 2)[1]
+        znak_count = branch_name.count("^")
+
+        for parent_commit in commit.parents:
+            if znak_count < repo.git.name_rev(parent_commit.hexsha, name_only=True).count("^"):
+                branches_commits[parent_commit.hexsha] = f"{branch_name_tmp} (branch deleted)"
+
+    if "tags" in branch_name:
+        branch_name = branch_name.split("^", 1)[0].split("~", 1)[0]
+    else:
+        if branch_name.rfind("~", 1) > branch_name.rfind("^", 1):
+            parts = branch_name.rsplit("~", 1)
+            branch_name = parts[0]
+
+    if commit.hexsha in branches_commits:
+        branches_trans[branch_name] = branches_commits[commit.hexsha]
+
+    if branch_name in branches_trans:
+        branch_name = branches_trans[branch_name]
+
+    return branch_name
+
+
+def build_checkboxes(branch_name: str, commit: Commit) -> None:
+    if branch_name not in [item["label"] for item in branches_checkbox]:
+        branches_checkbox.append({"label": branch_name, "value": branch_name})
+
+    if commit.author.email not in author_checkbox:
+        author_checkbox.append(commit.author.email)
 
 
 def generate_commit_tree(max_commits: int) -> dict:
-    global newest_tag, max_confidence
-    newest_tag = ""
-    return_data = {}
+    global max_confidence
+    commits = {}
 
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
-        branch_name = repo.git.name_rev(commit.hexsha, name_only=True)
-        branch_name_full = branch_name
+        branch_name_full = repo.git.name_rev(commit.hexsha, name_only=True)
+        branch_name = build_branch_name(branch_name_full, commit)
 
-        if "Merge pull request" in commit.message:
-            branch_name_tmp = commit.message.split("\n")[0].rsplit(" ", 1)[1]
-            znak_count = branch_name.count("^")
-            for xd_commit in commit.parents:
-                if znak_count < repo.git.name_rev(xd_commit.hexsha, name_only=True).count("^"):
-                    branches_commits[xd_commit.hexsha] = f"{branch_name_tmp} (branch deleted)"
+        build_checkboxes(branch_name, commit)
 
-        if "tags" in branch_name:
-            branch_name = branch_name.split("^", 1)[0].split("~", 1)[0]
-        else:
-            if branch_name.rfind("~", 1) > branch_name.rfind("^", 1):
-                parts = branch_name.rsplit("~", 1)
-                branch_name = parts[0]
-            else:
-                branch_name = branch_name
-
-        if commit.hexsha in branches_commits:
-            branches_trans[branch_name] = branches_commits[commit.hexsha]
-
-        if branch_name in branches_trans:
-            branch_name = branches_trans[branch_name]
-
-        if branch_name not in [item["label"] for item in branches_checkbox]:
-            branches_checkbox.append({"label": branch_name, "value": branch_name})
-
-        if commit.author.email not in author_checkbox:
-            author_checkbox.append(commit.author.email)
         try:
             ds, confidence, diff_result = selection.should_check_version(
                 GitRepository(repo_path).get_minor_version_info(commit.hexsha)
             )
         except Exception as e:
             print(f"CHYBICKA: {e}")
-            ds = False
-            confidence = -1
-            diff_result = None
+            ds, confidence, diff_result = False, -1, None
 
         if confidence > max_confidence:
             max_confidence = confidence
-        return_data[commit.hexsha] = {
+
+        commits[commit.hexsha] = {
             "parents": [parent.hexsha for parent in commit.parents if parent.hexsha],
             "branch": branch_name,
             "author": commit.author.email,
@@ -91,7 +98,7 @@ def generate_commit_tree(max_commits: int) -> dict:
             "diff_result": diff_result,
         }
 
-    return return_data
+    return commits
 
 
 @app.callback(
@@ -99,7 +106,7 @@ def generate_commit_tree(max_commits: int) -> dict:
     Input("commit-graph", "tapNodeData"),
     priority=1,
 )
-def show_hide_button(_):
+def show_hide_statistic_button(_) -> dict:
     global selected_nodes
     time.sleep(0.1)
     if len(selected_nodes) != 2:
@@ -113,7 +120,7 @@ def show_hide_button(_):
     Input("commit-graph", "tapNodeData"),
     priority=1,
 )
-def show_hide_button(_):
+def show_hide_find_button(_) -> dict:
     global selected_nodes
     time.sleep(0.1)
     if len(selected_nodes) != 1:
@@ -127,7 +134,7 @@ def show_hide_button(_):
     Input("show/hide_confidence-button", "n_clicks"),
     priority=2,
 )
-def show_hide_confidence(n_clicks):
+def show_hide_confidence_button(n_clicks: int) -> str:
     if n_clicks % 2 == 0:
         return "Show confidence"
     else:
@@ -137,19 +144,17 @@ def show_hide_confidence(n_clicks):
 @app.callback(
     Output("statistic-button", "children"), Input("statistic-button", "n_clicks"), priority=2
 )
-def show_hide_statistics(n_clicks):
+def show_hide_statistics_button(n_clicks: int) -> str:
     if n_clicks % 2 == 0:
         return "Show statistics"
     else:
         return "Hide statistics"
 
 
-def generate_hex_color():
-    r = random.randint(50, 215)
-    g = random.randint(50, 215)
-    b = random.randint(50, 215)
-    hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
-    return hex_color
+def generate_hex_color() -> str:
+    return "#{:02x}{:02x}{:02x}".format(
+        random.randint(60, 190), random.randint(60, 190), random.randint(60, 190)
+    )
 
 
 @app.callback(
@@ -248,11 +253,12 @@ def update_graph(
 ) -> (list, list):
     time.sleep(0.1)
 
-    global x_position, node_count, LOADED_COMMITS, visible_commits, COMPARE_VERSION, max_confidence
-    x_position, node_count = 0, 0
-    loaded_commits = LOADED_COMMITS.copy().items()
+    global LOADED_COMMITS, max_confidence
+    x_position = 0
 
-    new_commits = commit_filtering(loaded_commits, selected_branches, selected_authors, num_commits)
+    new_commits = commit_filtering(
+        LOADED_COMMITS.copy().items(), selected_branches, selected_authors, num_commits
+    )
     new_commit_hashes = {commit["hexsha"] for commit in new_commits.copy()}
     show_confidence = False if show_hide_confidence_n_clicks % 2 == 0 else True
     new_branch_positions = {"x8494156e1qw56ewq16e5q": "?"}
@@ -268,15 +274,14 @@ def update_graph(
         else:
             new_branch_positions[branch]["count"] += 1
 
-    xd_branches = new_branch_positions.copy()
+    branches = new_branch_positions.copy()
 
     if find_button_n_clicks % 2 != 0:
         finding_suitable_versions_to_compare(new_commits)
 
-    new_nodes = create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence)
-    new_edges = create_edges(new_commits, new_commit_hashes, xd_branches)
+    new_nodes = create_nodes(new_commits, branches, new_branch_positions, show_confidence)
+    new_edges = create_edges(new_commits, new_commit_hashes, branches)
 
-    visible_commits = [commit["hexsha"] for commit in new_commits]
     return new_nodes + new_edges
 
 
@@ -291,9 +296,6 @@ def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence
             bg_color = (
                 interpolate_color(commit["confidence"]) if commit["confidence"] >= 0 else "#000000"
             )
-        elif COMPARE_VERSION:
-            print("???")
-            # TODO continue
         else:
             if selected_nodes:
                 if commit["hexsha"] in selected_nodes:
@@ -462,9 +464,7 @@ def show_statistics(n_clicks):
 
                 for rule in rules:
                     parser_name = rule.get("parser_name")
-                    parser_rules.setdefault(parser_name, []).append(
-                        rule
-                    )
+                    parser_rules.setdefault(parser_name, []).append(rule)
 
         rules_components = []
         for parser_name, rules_list in parser_rules.items():
@@ -479,40 +479,26 @@ def show_statistics(n_clicks):
                         ),
                         html.Div(
                             [
-                                # html.P(
-                                #     str(item),
-                                #     style={
-                                #         "border-bottom": "1px solid lightgray",
-                                #     },
-                                # )
-                                # if "False" in str(item)
-                                # else html.Div(
-                                #     [
-                                #         html.Strong(
-                                #             str(item),
-                                #         ),
-                                #         # html.Br(),
-                                #         html.Div(
-                                #             "",
-                                #             style={
-                                #                 "border-bottom": "1px solid lightgray",
-                                #             },
-                                #         ),
-                                #     ]
-                                # )
-                                # for item in rules_list
-                                html.P(
-                                    str(item),
+                                html.Div(
+                                    [
+                                        html.Div(f"Rule: {item['rule']}"),
+                                        html.Div(f"Variable: {item['key']}"),
+                                        html.Div(f"Value: {item['value']}"),
+                                    ],
                                     style={
                                         "border-bottom": "1px solid lightgray",
+                                        "padding-left": "20px",
                                     },
                                 )
                                 for item in rules_list
                                 if "True" in str(item)
-                            ],  # Use the stored components
+                            ],
                             style={"max-height": "200px", "overflow-y": "auto"},
                         ),
-                    ]
+                    ],
+                    style={
+                        "padding-left": "20px",
+                    },
                 )
             )
 
@@ -671,6 +657,10 @@ app.layout = html.Div(
             [
                 html.Div(
                     id="show_statistics",
+                    style={
+                        "max-height": "100vh",
+                        "overflow-y": "auto",
+                    },
                 ),
                 html.Div(id="placeholder-output"),
             ],
@@ -690,10 +680,14 @@ app.layout = html.Div(
     },
 )
 
+from datetime import datetime
+
 
 def run_plotlydash():
     global LOADED_COMMITS
     if not LOADED_COMMITS:
-        # generating takes about 3sec for 100 commits
-        LOADED_COMMITS = generate_commit_tree(15)
+        # generating takes about 9.3sec for 100 commits
+        tt = datetime.now()
+        LOADED_COMMITS = generate_commit_tree(20)
+        print(datetime.now() - tt)
     app.run_server(debug=True)
