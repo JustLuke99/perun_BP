@@ -5,7 +5,7 @@ import magic
 from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFoundException
 
 CONFIG = {
-    "parser_files": ["lizard_parser.py", "radon_parser.py", "ast_parser.py", "angr_parser.py"],
+    "indicator_files": ["lizard_indicator.py", "radon_indicator.py", "ast_indicator.py", "angr_indicator.py"],
     "IGNORE_FOLDERS": ["venv", "idea"],
     "IGNORE_FILES": ["meson.build", "__init__.py"],
     "ROOT_FOLDER": os.getcwd() + "/dash_cytoscape",
@@ -14,33 +14,32 @@ CONFIG = {
 
 class IndicatorsManager:
     """
-    Manages a collection of code parsers and facilitates parsing of code files in a directory.
+    Manages a collection of code indicators and facilitates parsing of code files in a directory.
 
     Attributes:
-    - parsers_directory (str): The directory containing code parsers.
-    - parsers (list): A list of dictionaries, each containing a parser class and its supported languages.
-    - supported_languages (list): A list of all supported programming languages by the loaded parsers.
+    - indicators_directory (str): The directory containing code indicators.
+    - indicators (list): A list of dictionaries, each containing a indicator class and its supported languages.
+    - supported_languages (list): A list of all supported programming languages by the loaded indicators.
     """
 
     __slots__ = [
-        "parsers_directory",
-        "parsers",
+        "indicators_directory",
+        "indicators",
         "supported_languages",
         "data",
-        "loaded_parsers",
         "vcs_version",
     ]
 
     def __init__(self, vsc_version: str):
         """
-        Initializes a new instance of the CodeParserManager class.
+        Initializes a new instance of the CodeIndicatorManager class.
 
         Parameters:
         - None
         """
         # TODO change it to cfg
-        self.parsers_directory = "code_parsers"
-        self.parsers = []
+        self.indicators_directory = "code_indicators"
+        self.indicators = []
         self.supported_languages = []
         self.data = []
         self.vcs_version = vsc_version
@@ -72,7 +71,7 @@ class IndicatorsManager:
         self,
     ) -> None:
         """
-        Parses code files in the specified root directory using loaded parsers.
+        Parses code files in the specified root directory using loaded indicators.
 
         Parameters:
         - None
@@ -97,21 +96,21 @@ class IndicatorsManager:
                 ):
                     continue
 
-                parser_data = []
-                for code_parser in self.parsers:
-                    if not any(file.endswith(ext) for ext in code_parser["supported_languages"]):
+                indicator_data = []
+                for code_indicator in self.indicators:
+                    if not any(file.endswith(ext) for ext in code_indicator["supported_languages"]):
                         continue
 
                     file = file.replace(".bin", "")
                     try:
-                        data = code_parser["class"].parse(
+                        data = code_indicator["class"].parse(
                             file_path=os.path.join(directory_name, file)
                         )
                     except Exception as e:
                         print(f"File: {os.path.join(directory_name, file)}: {e}")
                         continue
 
-                    parser_data.append({"parser_name": code_parser["parser_name"], "data": data})
+                    indicator_data.append({"indicator_name": code_indicator["indicator_name"], "data": data})
 
                 self.data.append(
                     {
@@ -119,7 +118,7 @@ class IndicatorsManager:
                             directory_name.replace(CONFIG["ROOT_FOLDER"], ""), file
                         ),
                         "file_type": file.rsplit(".")[-1],
-                        "data": parser_data,
+                        "data": indicator_data,
                     }
                 )
 
@@ -127,7 +126,7 @@ class IndicatorsManager:
 
     def _load_indicators(self) -> None:
         """
-        Loads code parsers from the specified directory and updates supported_languages.
+        Loads code indicators from the specified directory and updates supported_languages.
 
         Parameters:
         - None
@@ -135,44 +134,44 @@ class IndicatorsManager:
         Returns:
         - None
         """
-        for parser_file in CONFIG["parser_files"]:
-            module_name = os.path.splitext(parser_file)[0]
+        for indicator_file in CONFIG["indicator_files"]:
+            module_name = os.path.splitext(indicator_file)[0]
             if "__init__" in module_name:
                 continue
 
-            module_path = f"perun.indicators.code_parsers.{module_name}"
+            module_path = f"perun.indicators.code_indicators.{module_name}"
 
             try:
                 module = importlib.import_module(module_path)
             except Exception as e:
-                raise AttributeError(f"Cant import module from file {parser_file}. {e}")
+                raise AttributeError(f"Cant import module from file {indicator_file}. {e}")
 
             classes = [cls for cls in dir(module) if isinstance(getattr(module, cls), type)]
 
             if not classes:
-                raise AttributeError(f"File {parser_file} doesnt have class.")
+                raise AttributeError(f"File {indicator_file} doesnt have class.")
 
-            parse_class = [
+            file_classes = [
                 _class
                 for _class in classes
-                if _class != "BaseParser" and "parser" in _class.lower()
+                if _class != "BaseIndicator" and "indicator" in _class.lower()
             ]
 
-            parser_class = getattr(module, parse_class[0])
+            indicator_class = getattr(module, file_classes[0])
             try:
-                supported_languages = parser_class().get_languages()
+                supported_languages = indicator_class().get_languages()
             except Exception as e:
-                raise NotImplementedError(f"In {parser_file} is missing get_languages()")
+                raise NotImplementedError(f"In {indicator_file} is missing get_languages()")
 
             for language in supported_languages:
                 if language not in self.supported_languages:
                     self.supported_languages.append(language)
 
-            self.parsers.append(
+            self.indicators.append(
                 {
-                    "class": parser_class(),
-                    "supported_languages": parser_class().get_languages(),
-                    "parser_name": parse_class[0],
+                    "class": indicator_class(),
+                    "supported_languages": indicator_class().get_languages(),
+                    "indicator_name": file_classes[0],
                 }
             )
 

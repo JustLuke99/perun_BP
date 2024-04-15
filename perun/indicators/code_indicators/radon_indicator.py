@@ -12,7 +12,7 @@ from radon.metrics import (
     mi_compute,
 )
 
-from perun.indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_indicator import BaseIndicator
 
 
 class Data(TypedDict):
@@ -29,7 +29,7 @@ class Data(TypedDict):
     functions: List[Dict[str, Union[int, str]]]
 
 
-class RadonParser(BaseParser):
+class RadonIndicator(BaseIndicator):
     supported_languages = ["py"]
 
     def parse(self, file_path: str) -> Data:

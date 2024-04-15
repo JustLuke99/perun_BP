@@ -1,4 +1,4 @@
-from perun.indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_indicator import BaseIndicator
 from perun.collect.trace.optimizations.resources.manager import extract, Resources
 from typing import TypedDict, Dict
 
@@ -7,7 +7,7 @@ class Data(TypedDict):
     data: Dict[str, dict]
 
 
-class AngrParser(BaseParser):
+class AngrIndicator(BaseIndicator):
     supported_languages = ["bin"]
 
     def parse(self, file_path) -> Data:

@@ -1,4 +1,4 @@
-from perun.indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_indicator import BaseIndicator
 import lizard
 import os
 from typing import TypedDict, List, Dict, Tuple
@@ -15,7 +15,7 @@ class Data(TypedDict):
     functions: List[Dict[str, Union[int, str]]]
 
 
-class LizardParser(BaseParser):
+class LizardIndicator(BaseIndicator):
     supported_languages = ["py", "cpp", "c"]
 
     def parse(self, file_path: str) -> Data:

@@ -1,4 +1,4 @@
-class BaseParser:
+class BaseIndicator:
     supported_languages: list = []
 
     def get_languages(self):

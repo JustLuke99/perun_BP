@@ -1279,7 +1279,5 @@ def launch_cli() -> None:
 
 
 if __name__ == "__main__":
-    run_visualization()
-    # test_sel()
-    # get_data_from_commits()
-    # test_indicator()
+    # run_visualization()
+    get_data_from_commits()

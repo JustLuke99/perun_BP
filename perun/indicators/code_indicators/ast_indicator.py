@@ -1,4 +1,4 @@
-from perun.indicators.abstract.base_parser import BaseParser
+from perun.indicators.abstract.base_indicator import BaseIndicator
 import ast, json
 import networkx as nx
 from typing import TypedDict, List, Dict, Tuple, Union
@@ -41,7 +41,7 @@ class CallGraphVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-class AstParser(BaseParser):
+class AstIndicator(BaseIndicator):
     supported_languages = ["py"]
 
     def parse(self, file_path) -> Data:
