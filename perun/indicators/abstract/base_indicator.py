@@ -1,5 +1,5 @@
 class BaseIndicator:
-    supported_languages: list = []
+    supported_languages: list
 
     def get_languages(self):
         return self.supported_languages

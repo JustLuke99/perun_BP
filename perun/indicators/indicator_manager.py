@@ -5,10 +5,13 @@ import magic
 from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFoundException
 
 CONFIG = {
-    "indicator_files": ["lizard_indicator.py", "radon_indicator.py", "ast_indicator.py", "angr_indicator.py"],
+    "indicator_files": [
+        "lizard_indicator.py",
+        "radon_indicator.py",
+    ],  #  "ast_indicator.py", "angr_indicator.py"
     "IGNORE_FOLDERS": ["venv", "idea"],
     "IGNORE_FILES": ["meson.build", "__init__.py"],
-    "ROOT_FOLDER": os.getcwd() + "/dash_cytoscape",
+    "ROOT_FOLDER": os.getcwd(),  # + "/dash_cytoscape",
 }
 
 
@@ -17,13 +20,11 @@ class IndicatorsManager:
     Manages a collection of code indicators and facilitates parsing of code files in a directory.
 
     Attributes:
-    - indicators_directory (str): The directory containing code indicators.
     - indicators (list): A list of dictionaries, each containing a indicator class and its supported languages.
     - supported_languages (list): A list of all supported programming languages by the loaded indicators.
     """
 
     __slots__ = [
-        "indicators_directory",
         "indicators",
         "supported_languages",
         "data",
@@ -37,8 +38,6 @@ class IndicatorsManager:
         Parameters:
         - None
         """
-        # TODO change it to cfg
-        self.indicators_directory = "code_indicators"
         self.indicators = []
         self.supported_languages = []
         self.data = []
@@ -67,7 +66,7 @@ class IndicatorsManager:
         except Exception as e:
             raise e
 
-    def parse(
+    def get_data_from_indicators(
         self,
     ) -> None:
         """
@@ -110,7 +109,14 @@ class IndicatorsManager:
                         print(f"File: {os.path.join(directory_name, file)}: {e}")
                         continue
 
-                    indicator_data.append({"indicator_name": code_indicator["indicator_name"], "data": data})
+                    indicator_data.append(
+                        {
+                            "parser_name": code_indicator["indicator_name"].replace(
+                                "Indicator", "Parser"
+                            ),
+                            "data": data,
+                        }
+                    )
 
                 self.data.append(
                     {
@@ -218,4 +224,4 @@ class IndicatorsManager:
 
 
 def test_indicator_manager(hash, git_repo_path):
-    IndicatorsManager(vsc_version=hash).parse()
+    IndicatorsManager(vsc_version=hash).get_data_from_indicators()

@@ -33,12 +33,10 @@ CONFIG = {
 }
 
 
-# class BetterRepositorySelection(AbstractBaseSelection):
-class BetterRepositorySelection:
+class BetterRepositorySelection(AbstractBaseSelection):
     __slots__ = ("git_repo", "rule_class")
 
     def __init__(self, repository_path: str = os.getcwd()) -> None:
-        # self.git_repo = GitRepository("/home/luke/PycharmProjects/perun_BP")
         self.git_repo = GitRepository(repository_path)
         self.rule_class = Rule()
 
@@ -74,7 +72,7 @@ class BetterRepositorySelection:
         :param version_to_compare: corresponding baseline version (compared against)
         :return: always true with 100% confidence
         """
-        diff = self._get_version_diff(target_version, version_to_compare)
+        diff = self._get_versions_diff(target_version, version_to_compare)
         # TODO add confidence
         should_check = self._check_diff_thresholds(diff_data=diff)
         # TODO add confidence
@@ -310,7 +308,7 @@ class BetterRepositorySelection:
 
         return file_diff
 
-    def _get_version_diff(
+    def _get_versions_diff(
         self, first_version: MinorVersion, second_version: MinorVersion
     ) -> List[dict]:
         """
@@ -434,15 +432,24 @@ class BetterRepositorySelection:
     def _find_all_by_file_path(data_list, file_path_to_find):
         return [item for item in data_list if file_path_to_find in item.get("file_path")]
 
+    def find_nearest(self, target_version: MinorVersion) -> MinorVersion:
+        pass
 
-# def _find_all_paths(data_list: List[dict]):
-#     paths = []
-#     for data in data_list:
-#         if not (new_path := data["file_path"].rsplit("/", 1)[0]) in paths:
-#             paths.append(new_path)
-#
-#     return [{"path": path, "data": []} for path in paths]
-#
+    def get_parents(self, target_version: MinorVersion) -> list[MinorVersion]:
+        pass
+
+    def get_profiles(
+        self, target_version: MinorVersion, target_profile: Profile
+    ) -> list[tuple[MinorVersion, ProfileInfo]]:
+        pass
+
+    def get_skeleton(self, target_version: MinorVersion) -> list[MinorVersion]:
+        pass
+
+    def get_skeleton_for_profile(
+        self, target_version: MinorVersion, target_profile: Profile
+    ) -> Iterator[tuple[MinorVersion, ProfileInfo]]:
+        pass
 
 
 def select_test(minor_version):

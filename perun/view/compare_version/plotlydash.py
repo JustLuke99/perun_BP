@@ -22,7 +22,7 @@ selected_nodes = []
 selected_options_state = []
 selected_authors_state = []
 LOADED_COMMITS = {}
-
+branch_colors = {}
 selection = BetterRepositorySelection(repo_path)
 max_confidence = 0
 
@@ -58,12 +58,32 @@ def build_branch_name(branch_name: str, commit: Commit) -> str:
     return branch_name
 
 
-def build_checkboxes(branch_name: str, commit: Commit) -> None:
-    if branch_name not in [item["label"] for item in branches_checkbox]:
-        branches_checkbox.append({"label": branch_name, "value": branch_name})
+def build_checkboxes(branch_name: str, commit: Commit, branch_color: str) -> None:
+    if branch_name not in [item["value"] for item in branches_checkbox]:
+        branches_checkbox.append(
+            {
+                "label": html.Div(
+    [
+        html.Span(
+            branch_name, style={"max-width": "90%"}
+        ),
+        html.Span(
+            "█",
+            style={
+                "color": branch_color,
+                "margin-left": "4px",
+                "max-width": "10%",
+            },
+        ),
+    ],
+                    style={"display": "inline-block", "margin-left": "4px",}
+),
+                "value": branch_name,
+            }
+        )
 
-    if commit.author.email not in author_checkbox:
-        author_checkbox.append(commit.author.email)
+    if commit.author.email not in [item["value"] for item in author_checkbox]:
+        author_checkbox.append({"label": html.Div(commit.author.email, style={"margin-left": "4px", "display": "inline-block",}), "value": commit.author.email})
 
 
 def generate_commit_tree(max_commits: int) -> dict:
@@ -73,8 +93,6 @@ def generate_commit_tree(max_commits: int) -> dict:
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
         branch_name_full = repo.git.name_rev(commit.hexsha, name_only=True)
         branch_name = build_branch_name(branch_name_full, commit)
-
-        build_checkboxes(branch_name, commit)
 
         try:
             ds, confidence, diff_result = selection.should_check_version(
@@ -97,6 +115,10 @@ def generate_commit_tree(max_commits: int) -> dict:
             "confidence": confidence,
             "diff_result": diff_result,
         }
+        if branch_name not in branch_colors:
+            branch_colors[branch_name] = generate_hex_color()
+
+        build_checkboxes(branch_name, commit, branch_colors[branch_name])
 
     return commits
 
@@ -266,7 +288,8 @@ def update_graph(
         if (branch := commit["branch"]) not in new_branch_positions:
             new_branch_positions[branch] = {
                 "position": x_position,
-                "color": generate_hex_color(),
+                # "color": generate_hex_color(),
+                "color": branch_colors[branch],
                 "count": 1,
                 "last": 2,
             }
@@ -462,18 +485,18 @@ def show_statistics(n_clicks):
                     rules = [rules]
 
                 for rule in rules:
-                    parser_name = rule.get("parser_name")
-                    parser_rules.setdefault(parser_name, []).append(rule)
+                    indicator_name = rule.get("indicator_name")
+                    parser_rules.setdefault(indicator_name, []).append(rule)
 
         rules_components = []
-        for parser_name, rules_list in parser_rules.items():
+        for indicator_name, rules_list in parser_rules.items():
             rules_components.append(
                 html.Details(
                     [
                         html.Summary(
                             [
-                                html.Strong("Parser: "),
-                                f"{parser_name}",
+                                html.Strong("Indicator: "),
+                                f"{indicator_name}",
                             ]
                         ),
                         html.Div(
@@ -526,6 +549,18 @@ def show_statistics(n_clicks):
         )
         cards.append(card)
     return cards
+
+
+@app.callback(
+    Output("graph-legend", "children"),
+    [Input("find-button", "n_clicks")],
+    priority=-10,
+)
+def update_button_text(n_clicks, _):
+    if n_clicks % 2 == 0:
+        return ""
+    else:
+        return "Hide compared versions"
 
 
 app.layout = html.Div(
@@ -590,6 +625,7 @@ app.layout = html.Div(
                         "max-height": "45vh",
                         "overflow-y": "auto",
                         "border-bottom": "1px solid lightgray",
+                        "margin-left": "10px",
                     },
                 ),
                 html.Br(),
@@ -604,6 +640,7 @@ app.layout = html.Div(
                         "max-height": "45vh",
                         "overflow-y": "auto",
                         "border-bottom": "1px solid lightgray",
+                        "margin-left": "10px",
                     },
                 ),
                 html.Br(),
@@ -643,6 +680,7 @@ app.layout = html.Div(
                     ],
                     style={"display": "block", "margin-bottom": "10px"},
                 ),
+                html.Div(id="graph-legend"),
             ],
             style={
                 "width": "22%",
@@ -687,6 +725,6 @@ def run_plotlydash():
     if not LOADED_COMMITS:
         # generating takes about 6-10sec for 100 commits
         tt = datetime.now()
-        LOADED_COMMITS = generate_commit_tree(100)
+        LOADED_COMMITS = generate_commit_tree(15)
         print(datetime.now() - tt)
     app.run_server(debug=True)
