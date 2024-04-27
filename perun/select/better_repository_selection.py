@@ -29,7 +29,7 @@ CONFIG = {
             "from": "root",  # "root", "end"
         },
     },
-    "evaluate_rules": {"type": "average", "value": 0.03006},  # "any", "average", "average_weighted"
+    "evaluate_rules": {"type": "average", "value": 0.00380},  # "any", "average", "average_weighted"
 }
 
 
@@ -56,7 +56,7 @@ class BetterRepositorySelection(AbstractBaseSelection):
         ]
 
         if len(minor_versions) < 2:
-            exit()
+            return False, 0
 
         version_one, version_two = minor_versions[:2]
 

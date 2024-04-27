@@ -13,7 +13,9 @@ import dash_bootstrap_components as dbc
 from perun.select.better_repository_selection import BetterRepositorySelection
 from perun.vcs.git_repository import GitRepository
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(
+    __name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True
+)
 repo_path = os.getcwd()
 repo = git.Repo(repo_path)
 repo_commits = list(repo.iter_commits())
@@ -31,6 +33,9 @@ branches_commits = {}
 
 
 def build_branch_name(branch_name: str, commit: Commit) -> str:
+    if branch_name == "master~1" or branch_name == "master~383":
+        print("")
+
     if any(x in commit.message for x in ["Merge pull request", "Merge branch"]):
         if "Merge pull request" in commit.message:
             branch_name_tmp = commit.message.split("\n")[0].rsplit(" ", 1)[1]
@@ -63,34 +68,51 @@ def build_checkboxes(branch_name: str, commit: Commit, branch_color: str) -> Non
         branches_checkbox.append(
             {
                 "label": html.Div(
-    [
-        html.Span(
-            branch_name, style={"max-width": "90%"}
-        ),
-        html.Span(
-            "█",
-            style={
-                "color": branch_color,
-                "margin-left": "4px",
-                "max-width": "10%",
-            },
-        ),
-    ],
-                    style={"display": "inline-block", "margin-left": "4px",}
-),
+                    [
+                        html.Span(branch_name, style={"max-width": "90%"}),
+                        html.Span(
+                            "●",
+                            style={
+                                "color": branch_color,
+                                "margin-left": "4px",
+                                "max-width": "10%",
+                                "font-size": "x-large",
+                                # "display": "inline",
+                            },
+                        ),
+                    ],
+                    style={"display": "inline-block", "margin-left": "4px"},
+                ),
                 "value": branch_name,
             }
         )
 
     if commit.author.email not in [item["value"] for item in author_checkbox]:
-        author_checkbox.append({"label": html.Div(commit.author.email, style={"margin-left": "4px", "display": "inline-block",}), "value": commit.author.email})
+        author_checkbox.append(
+            {
+                "label": html.Div(
+                    commit.author.email,
+                    style={
+                        "margin-left": "4px",
+                        "display": "inline-block",
+                    },
+                ),
+                "value": commit.author.email,
+            }
+        )
 
 
 def generate_commit_tree(max_commits: int) -> dict:
     global max_confidence
     commits = {}
-
+    i = 0
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
+        if (
+            i == len(repo_commits[: max_commits if max_commits > 0 else 99999999])
+            or i == len(repo_commits[: max_commits if max_commits > 0 else 99999999]) - 1
+        ):
+            print("")
+        i += 1
         branch_name_full = repo.git.name_rev(commit.hexsha, name_only=True)
         branch_name = build_branch_name(branch_name_full, commit)
 
@@ -110,7 +132,7 @@ def generate_commit_tree(max_commits: int) -> dict:
             "branch": branch_name,
             "author": commit.author.email,
             "branch_full": branch_name_full,
-            "message": commit.message,
+            "message": commit.summary,
             "should_check": ds,
             "confidence": confidence,
             "diff_result": diff_result,
@@ -214,6 +236,7 @@ def display_selected_commit(tapNodeData):
 
 
 def commit_filtering(commits, selected_branches, selected_authors, num_commits):
+    global max_confidence
     if selected_branches:
         commits = {
             key: value for key, value in commits if value["branch"] in selected_branches
@@ -238,12 +261,17 @@ def commit_filtering(commits, selected_branches, selected_authors, num_commits):
         for key, value in commits
     ][:num_commits]
 
+    max_confidence = 0
+    for commit in commits:
+        if commit["confidence"] > max_confidence:
+            max_confidence = commit["confidence"]
+
     return commits
 
 
 def interpolate_color(value):
     global max_confidence
-    max_value = max_confidence
+    max_value = max_confidence if max_confidence > 0 else 0.00000001
     red = (max_value - value) / max_value * 255
     green = value / max_value * 255
     rgb_color = (red, green, 0)
@@ -441,7 +469,6 @@ def show_statistics(n_clicks):
 
     # if len(selected_nodes) != 2:
     #     return [html.P("Select two commits to compare")]
-
     git_repo = GitRepository(repo_path)
     data, confidence, diff_result = selection.should_check_versions(
         GitRepository(repo_path).get_minor_version_info(selected_nodes[0]),
@@ -465,19 +492,32 @@ def show_statistics(n_clicks):
         item["true_count"] = true_count
 
     sorted_diff_result = sorted(diff_result, key=lambda x: x["true_count"], reverse=True)
+    max_true_rules = max([item["true_count"] for item in sorted_diff_result])
 
     cards = [
         html.H3("Difference statistics:", style={"margin-bottom": "5px"}),
-        html.Strong(f"Should be checked:"),
-        html.Div(f"{data}"),
-        html.Strong(f"Confidence:"),
-        html.Div(f"{confidence}"),
-        html.Strong(f"Files & rules:"),
     ]
+    cards.append(
+        html.Strong(f"This versions should be checked!", style={"color": "green", "fontSize": 36})
+        if data
+        else html.Strong(f"Dont check this versions!", style={"color": "red", "fontSize": 36})
+    )
+
+    cards.extend(
+        [
+            html.Br(),
+            html.Strong(f"Confidence:"),
+            html.Div(f"{confidence}"),
+            html.Strong(f"Files & rules:"),
+        ]
+    )
+
     for index, item in enumerate(sorted_diff_result):
         if item["true_count"] == 0:
             continue
 
+
+        background_color = get_green_color(max_true_rules, item["true_count"])
         parser_rules = {}
         for rule_item in item["data"]:
             for rules in rule_item:
@@ -485,7 +525,7 @@ def show_statistics(n_clicks):
                     rules = [rules]
 
                 for rule in rules:
-                    indicator_name = rule.get("indicator_name")
+                    indicator_name = rule.get("parser_name").replace("Parser", "Indicator")
                     parser_rules.setdefault(indicator_name, []).append(rule)
 
         rules_components = []
@@ -497,7 +537,7 @@ def show_statistics(n_clicks):
                             [
                                 html.Strong("Indicator: "),
                                 f"{indicator_name}",
-                            ]
+                            ], style={"background-color": background_color}
                         ),
                         html.Div(
                             [
@@ -515,7 +555,7 @@ def show_statistics(n_clicks):
                                 for item in rules_list
                                 if "True" in str(item)
                             ],
-                            style={"max-height": "200px", "overflow-y": "auto"},
+                            style={"max-height": "200px", "overflow-y": "auto", "background-color": background_color},
                         ),
                     ],
                     style={
@@ -540,15 +580,19 @@ def show_statistics(n_clicks):
                     style={
                         "max-height": "200px",
                         "overflow-y": "auto",
-                        "background-color": "white",
+                        "background-color": background_color,
                     },
                     className="details-container",
                 ),
             ],
-            style={"border": "1px solid lightgray", "padding": "10px"},
+            style={"border": "1px solid lightgray", "padding": "10px", "background-color": background_color},
         )
         cards.append(card)
     return cards
+
+def get_green_color(max_true_rules, true_count):
+    color = 1 - true_count / max_true_rules * 0.5
+    return mcolors.rgb2hex((color, 1, color))
 
 
 @app.callback(
@@ -717,14 +761,10 @@ app.layout = html.Div(
     },
 )
 
-from datetime import datetime
 
-
-def run_plotlydash():
+def run_plotlydash(load_commits: int):
     global LOADED_COMMITS
     if not LOADED_COMMITS:
-        # generating takes about 6-10sec for 100 commits
-        tt = datetime.now()
-        LOADED_COMMITS = generate_commit_tree(15)
-        print(datetime.now() - tt)
-    app.run_server(debug=True)
+        LOADED_COMMITS = generate_commit_tree(load_commits)
+
+    app.run_server(debug=True, dev_tools_ui=False, dev_tools_props_check=False)

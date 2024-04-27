@@ -1186,12 +1186,13 @@ def test_sel():
 
 
 @cli.command()
-def run_visualization():
-    run_plotlydash()
+@click.option("--load-commits", default=0, type=int, help="Maximum number of commits to load")
+def run_visualization(load_commits=0):
+    run_plotlydash(load_commits)
 
 
 @cli.command()
-def get_data_from_commits():
+def analyze_repo():
     git_repo_path = os.getcwd()
     git_repo = GitRepository(git_repo_path)
     head_hash = git_repo.get_minor_head()
@@ -1227,7 +1228,7 @@ cli.add_command(run_cli.run)
 cli.add_command(utils_cli.utils_group)
 cli.add_command(test_indicator)
 cli.add_command(test_sel)
-cli.add_command(get_data_from_commits)
+cli.add_command(analyze_repo)
 cli.add_command(run_visualization)
 
 
@@ -1278,4 +1279,4 @@ def launch_cli() -> None:
 
 if __name__ == "__main__":
     run_visualization()
-    # get_data_from_commits()
+#     # analyze_repo()
