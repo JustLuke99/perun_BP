@@ -516,7 +516,6 @@ def show_statistics(n_clicks):
         if item["true_count"] == 0:
             continue
 
-
         background_color = get_green_color(max_true_rules, item["true_count"])
         parser_rules = {}
         for rule_item in item["data"]:
@@ -537,7 +536,8 @@ def show_statistics(n_clicks):
                             [
                                 html.Strong("Indicator: "),
                                 f"{indicator_name}",
-                            ], style={"background-color": background_color}
+                            ],
+                            style={"background-color": background_color},
                         ),
                         html.Div(
                             [
@@ -555,7 +555,11 @@ def show_statistics(n_clicks):
                                 for item in rules_list
                                 if "True" in str(item)
                             ],
-                            style={"max-height": "200px", "overflow-y": "auto", "background-color": background_color},
+                            style={
+                                "max-height": "200px",
+                                "overflow-y": "auto",
+                                "background-color": background_color,
+                            },
                         ),
                     ],
                     style={
@@ -569,7 +573,7 @@ def show_statistics(n_clicks):
                 html.Summary(
                     [
                         html.Strong("Path: "),
-                        f"{item['path']}",
+                        f"{item['file_name']}",
                         html.Br(),
                         html.Strong("True rules: "),
                         f"{item['true_count']}",
@@ -585,10 +589,15 @@ def show_statistics(n_clicks):
                     className="details-container",
                 ),
             ],
-            style={"border": "1px solid lightgray", "padding": "10px", "background-color": background_color},
+            style={
+                "border": "1px solid lightgray",
+                "padding": "10px",
+                "background-color": background_color,
+            },
         )
         cards.append(card)
     return cards
+
 
 def get_green_color(max_true_rules, true_count):
     color = 1 - true_count / max_true_rules * 0.5
