@@ -1188,6 +1188,7 @@ def test_sel():
 @cli.command()
 @click.option("--load-commits", default=0, type=int, help="Maximum number of commits to load")
 def run_visualization(load_commits=0):
+    load_commits = 50
     run_plotlydash(load_commits)
 
 
@@ -1279,4 +1280,4 @@ def launch_cli() -> None:
 
 if __name__ == "__main__":
     run_visualization()
-#     # analyze_repo()
+    # analyze_repo()

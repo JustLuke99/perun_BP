@@ -3,17 +3,18 @@ RULE_CONFIG = {
     "RadonParser": {
         "active": True,
         "rules": {
-            "lines_of_code": [{"threshold_type": "value_from", "from": 2, "weight": 1}],
+            "lines_of_code": [{"threshold_type": "value_from", "from":-1, "weight": 1}],
             #"blank": [{"threshold_type": "value_from", "from": -1, "weight": 2}],
-            "cyclomatic_complexity": [{"threshold_type": "value_between", "from": 1, "to": 2}],
-            "number_of_functions": [{"threshold_type": "value_between", "from": 1, "to": 7}],
+            # "cyclomatic_complexity": [{"threshold_type": "value_between", "from": 1, "to": 2}],
+            # "number_of_functions": [{"threshold_type": "value_between", "from": 1, "to": 7}],
         },
     },
     "LizardParser": {
-        "active": False,
+        "active": True,
         "rules": {
-            "token_count": [{"threshold_type": "value_from", "from": 2, "weight": 1}],
-            "average_length_of_code": [{"threshold_type": "value_from", "from": -1, "weight": 1}],
+            # "token_count": [{"threshold_type": "value_from", "from": 2, "weight": 1}],
+            # "average_length_of_code": [{"threshold_type": "value_from", "from": -1, "weight": 1}],
+            "number_of_functions": [{"threshold_type": "value_from", "from": -1, "weight": 1}],
         },
     },
 }

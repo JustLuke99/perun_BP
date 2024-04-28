@@ -344,9 +344,6 @@ class BetterRepositorySelection(AbstractBaseSelection):
             second_version_file = self._get_data_from_file(
                 file_path=file["file_path"], data=second_version_data[second_version.checksum]
             )
-            # TODO skipuju
-            # if not second_version_file:
-            # print("Skipuju ^^")
             for parser in file["data"]:
                 if not second_version_file:
                     file_diff.append(

@@ -24,21 +24,6 @@ class Data(TypedDict):
 class CallGraphVisitor(ast.NodeVisitor):
     def __init__(self):
         self.graph = nx.DiGraph()
-        self.current_function = None
-
-    def visit_FunctionDef(self, node):
-        self.current_function = node.name
-        self.graph.add_node(self.current_function)
-        self.generic_visit(node)
-        self.current_function = None
-
-    def visit_Call(self, node):
-        if isinstance(node.func, ast.Name) and self.current_function:
-            caller = self.current_function
-            callee = node.func.id
-            self.graph.add_edge(caller, callee)
-
-        self.generic_visit(node)
 
 
 class AstIndicator(BaseIndicator):
@@ -58,10 +43,8 @@ class AstIndicator(BaseIndicator):
 
         source_code = f.read()
 
-        tree = ast.parse(source_code)
         visitor = CallGraphVisitor()
-        visitor.visit(tree)
-        call_graph = visitor.graph
-        call_graph_dict: Data = nx.readwrite.json_graph.node_link_data(call_graph)
+        visitor.visit(ast.parse(source_code))
+        call_graph_dict: Data = nx.readwrite.json_graph.node_link_data(visitor.graph)
 
         return call_graph_dict
