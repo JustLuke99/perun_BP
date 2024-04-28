@@ -477,6 +477,7 @@ def show_statistics(n_clicks):
 
     for item in diff_result:
         count, true_count = 0, 0
+
         for rule_list in item["data"]:
             for rule in rule_list:
                 if isinstance(rule, list):
@@ -573,7 +574,7 @@ def show_statistics(n_clicks):
                 html.Summary(
                     [
                         html.Strong("Path: "),
-                        f"{item['file_name']}",
+                        f"{item['file_name'] if 'file_name' in item.keys() else item['path']}",
                         html.Br(),
                         html.Strong("True rules: "),
                         f"{item['true_count']}",

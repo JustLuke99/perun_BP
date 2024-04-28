@@ -22,10 +22,10 @@ CONFIG = {
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
     "check_diff_thresholds": {
-        "find_diff_in": "files",  # "files", "folders", "project", "folders_rec"
+        "find_diff_in": "project",  # "files", "folders", "project", "folders_rec"
         "immersion": {  # this can be active only for "folders" and "folders_rec"
-            "active": True,
-            "folder_immersion_level": 2,
+            "active": False,
+            "folder_immersion_level": 5,
             "from": "root",  # "root", "end"
         },
     },
@@ -119,17 +119,24 @@ class BetterRepositorySelection(AbstractBaseSelection):
 
         if CONFIG["check_diff_thresholds"]["find_diff_in"] == "files":
             for file_diff in diff_data:
+                diff_results = []
+                for parser_diff in file_diff["data"]:
+                    diff_results.append(
+                        self._check_diff(parser_diff["data"], parser_diff["parser_name"]),
+                    )
                 diff_result.append(
                     {
-                        "path": file_diff["file_name"],
-                        "data": self._check_diff(file_diff["data"], file_diff["parser_name"]),
+                        "file_name": file_diff["file_name"],
+                        "data": diff_results,
                     }
                 )
         elif CONFIG["check_diff_thresholds"]["find_diff_in"] == "project":
             # TODO fix path
             folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
-            for parser_name, data in folder_rec_diff[""].items():
-                diff_result.append(self._check_diff(data, parser_name))
+            diff_results = []
+            for parser_name, data in folder_rec_diff["/"].items():
+                diff_results.append(self._check_diff(data, parser_name))
+            diff_result.append({"file_name": "/", "data": diff_results})
         elif CONFIG["check_diff_thresholds"]["find_diff_in"] in ("folders", "folders_rec"):
             folder_diff = (
                 self._calculate_diff_of_folders_recursively(diff_data)
@@ -139,10 +146,11 @@ class BetterRepositorySelection(AbstractBaseSelection):
             max_slashes = max(path.count("/") for path in folder_diff.keys())
             for folder, parsers in folder_diff.items():
                 if calculate_immersion_level(folder, max_slashes):
+                    diff_results = []
                     for parser_name, data in parsers.items():
-                        diff_result.append(
-                            {"path": folder, "data": self._check_diff(data, parser_name)}
-                        )
+                        diff_results.append(self._check_diff(data, parser_name))
+                    diff_result.append({"file_name": folder, "data": diff_results})
+
         else:
             raise Exception("find_diff_in is not defined.")
 
@@ -180,28 +188,38 @@ class BetterRepositorySelection(AbstractBaseSelection):
         count = 0
         true_rules = 0
         for diff in diff_result:
-            diff = diff["data"]
+            # if CONFIG["check_diff_thresholds"]["find_diff_in"] != "project":
+            #     diff = diff["data"]
+
             diff_dict = get_dicts(diff)
             for rule in diff_dict:
                 count += 1
                 if rule["result"]:
-                    true_rules += rule["weight"]
+                    if CONFIG["evaluate_rules"]["type"] == "average_weighted":
+                        true_rules += rule["weight"]
+                    else:
+                        true_rules += 1
 
-        # TODO improve this
+        confidence = true_rules / count if count > 0 else 0
+        if confidence > 1:
+            confidence = 1
+
+        if confidence < 0:
+            confidence = 0
+
         if CONFIG["evaluate_rules"]["type"] == "any":
-            return (True, 1, diff_result) if true_rules > 0 else (False, 0, diff_result)
+            return True if true_rules > 0 else False, confidence, diff_result
         elif CONFIG["evaluate_rules"]["type"] == "average":
             return (
-                (True, true_rules / count, diff_result)
-                if true_rules / count > CONFIG["evaluate_rules"]["value"]
-                else (False, true_rules / count, diff_result)
+                True if confidence > CONFIG["evaluate_rules"]["value"] else False,
+                confidence,
+                diff_result,
             )
-        # TODO add weighted average
         elif CONFIG["evaluate_rules"]["type"] == "average_weighted":
             return (
-                (True, true_rules / count, diff_result)
-                if true_rules / count > 0.7
-                else (False, true_rules / count, diff_result)
+                True if confidence > CONFIG["evaluate_rules"]["value"] else False,
+                confidence,
+                diff_result,
             )
 
     def _calculate_diff_of_folders_recursively(self, diff_data):
@@ -257,27 +275,35 @@ class BetterRepositorySelection(AbstractBaseSelection):
         if not any(x["file_name"].count("/") == 1 for x in diff_data):
             item_to_add = diff_data[0].copy()
             item_to_add["file_name"] = "/" + item_to_add["file_name"].split("/")[-1]
-            reset_values_to_zero(item_to_add["data"])
+            for parser_diff in item_to_add["data"]:
+                reset_values_to_zero(parser_diff["data"])
             diff_data.append(item_to_add)
 
         for file_diff in diff_data:
-            folder = file_diff["file_name"].rsplit("/", 1)[0]
+            folder_tmp = file_diff["file_name"].rsplit("/", 1)
+            folder = folder_tmp[0] if len(folder_tmp) > 1 else "/"
 
             if folder not in diff_folders.keys():
                 diff_folders[folder] = {}
 
-            if not file_diff["parser_name"] in diff_folders[folder]:
-                diff_folders[folder][file_diff["parser_name"]] = file_diff["data"]
-            else:
-                for key in diff_folders[folder][file_diff["parser_name"]].keys():
-                    if isinstance(diff_folders[folder][file_diff["parser_name"]][key], list):
-                        diff_folders[folder][file_diff["parser_name"]][key].extend(
-                            file_diff["data"][key]
-                        )
-                    else:
-                        diff_folders[folder][file_diff["parser_name"]][key] += file_diff["data"][
-                            key
-                        ]
+            for parser_diff in file_diff["data"]:
+                if parser_diff["parser_name"] not in diff_folders[folder]:
+                    diff_folders[folder][parser_diff["parser_name"]] = parser_diff["data"]
+                else:
+                    for key in diff_folders[folder][parser_diff["parser_name"]].keys():
+                        try:
+                            if isinstance(
+                                diff_folders[folder][parser_diff["parser_name"]][key], list
+                            ):
+                                diff_folders[folder][parser_diff["parser_name"]][key].extend(
+                                    parser_diff["data"][key]
+                                )
+                            else:
+                                diff_folders[folder][parser_diff["parser_name"]][
+                                    key
+                                ] += parser_diff["data"][key]
+                        except:
+                            continue
 
         return diff_folders
 
@@ -344,12 +370,12 @@ class BetterRepositorySelection(AbstractBaseSelection):
             second_version_file = self._get_data_from_file(
                 file_path=file["file_path"], data=second_version_data[second_version.checksum]
             )
+            file_diffs = []
             for parser in file["data"]:
                 if not second_version_file:
-                    file_diff.append(
+                    file_diffs.append(
                         {
                             "parser_name": parser["parser_name"],
-                            "file_name": file["file_path"],
                             "data": parser["data"],
                         }
                     )
@@ -371,13 +397,18 @@ class BetterRepositorySelection(AbstractBaseSelection):
                     parser["parser_name"], second_version_file.get("data", [])
                 )
                 diff = compare_dicts(parser["data"], second_version_parser_data)
-                file_diff.append(
+                file_diffs.append(
                     {
                         "parser_name": parser["parser_name"],
-                        "file_name": file["file_path"],
                         "data": diff,
                     }
                 )
+            file_diff.append(
+                {
+                    "file_name": file["file_path"],
+                    "data": file_diffs,
+                }
+            )
 
         return file_diff
 
