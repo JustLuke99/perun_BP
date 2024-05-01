@@ -22,14 +22,14 @@ CONFIG = {
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
     "check_diff_thresholds": {
-        "find_diff_in": "project",  # "files", "folders", "project", "folders_rec"
+        "find_diff_in": "folders",  # "files", "folders", "project", "folders_rec"
         "immersion": {  # this can be active only for "folders" and "folders_rec"
             "active": False,
             "folder_immersion_level": 5,
             "from": "root",  # "root", "end"
         },
     },
-    "evaluate_rules": {"type": "average", "value": 0.00380},  # "any", "average", "average_weighted"
+    "evaluate_rules": {"type": "average_weighted", "value": 0.00380},  # "any", "average", "average_weighted"
 }
 
 
@@ -154,6 +154,12 @@ class BetterRepositorySelection(AbstractBaseSelection):
         else:
             raise Exception("find_diff_in is not defined.")
 
+        # for item in diff_result:
+        #     for parser in item["data"]:
+        #         for rule in parser:
+        #             if isinstance(rule, list):
+        #                 rule = rule[0]
+
         return self._evaluate_rules(diff_result)
 
     def _evaluate_rules(self, diff_result):
@@ -188,8 +194,8 @@ class BetterRepositorySelection(AbstractBaseSelection):
         count = 0
         true_rules = 0
         for diff in diff_result:
-            # if CONFIG["check_diff_thresholds"]["find_diff_in"] != "project":
-            #     diff = diff["data"]
+            if CONFIG["check_diff_thresholds"]["find_diff_in"] != "project":
+                diff = diff["data"]
 
             diff_dict = get_dicts(diff)
             for rule in diff_dict:

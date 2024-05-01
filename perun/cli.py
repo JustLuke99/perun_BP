@@ -79,6 +79,7 @@ from perun.select.better_repository_selection import select_test
 from perun.vcs.git_repository import GitRepository
 from perun.vcs.vcs_kit import CleanState
 from perun.view.compare_version.plotlydash import run_plotlydash
+
 DEV_MODE = False
 
 
@@ -1188,7 +1189,6 @@ def test_sel():
 @cli.command()
 @click.option("--load-commits", default=0, type=int, help="Maximum number of commits to load")
 def run_visualization(load_commits=0):
-    load_commits = 50
     run_plotlydash(load_commits)
 
 

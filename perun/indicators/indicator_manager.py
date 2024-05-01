@@ -8,8 +8,8 @@ CONFIG = {
     "indicator_files": [
         "lizard_indicator.py",
         "radon_indicator.py",
-        "ast_indicator.py",
-        "angr_indicator.py",
+        # "ast_indicator.py",
+        # "angr_indicator.py",
     ],  #  "ast_indicator.py", "angr_indicator.py"
     "IGNORE_FOLDERS": ["venv", "idea"],
     "IGNORE_FILES": ["meson.build", "__init__.py"],

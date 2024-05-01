@@ -482,9 +482,15 @@ def show_statistics(n_clicks):
             for rule in rule_list:
                 if isinstance(rule, list):
                     for rul in rule:
-                        count += 1
-                        if rul["result"]:
-                            true_count += 1
+                        if isinstance(rul, list):
+                            for r in rul:
+                                count += 1
+                                if r["result"]:
+                                    true_count += 1
+                        else:
+                            count += 1
+                            if rul["result"]:
+                                true_count += 1
                 else:
                     count += 1
                     if rule["result"]:
@@ -525,8 +531,13 @@ def show_statistics(n_clicks):
                     rules = [rules]
 
                 for rule in rules:
-                    indicator_name = rule.get("parser_name").replace("Parser", "Indicator")
-                    parser_rules.setdefault(indicator_name, []).append(rule)
+                    if isinstance(rule, list):
+                        for rul in rule:
+                            indicator_name = rul.get("parser_name").replace("Parser", "Indicator")
+                            parser_rules.setdefault(indicator_name, []).append(rul)
+                    else:
+                        indicator_name = rule.get("parser_name").replace("Parser", "Indicator")
+                        parser_rules.setdefault(indicator_name, []).append(rule)
 
         rules_components = []
         for indicator_name, rules_list in parser_rules.items():
@@ -623,7 +634,7 @@ app.layout = html.Div(
             id="commit-graph",
             layout={
                 "name": "preset",
-                "viewport": {"zoom": 1, "pan": {"x": 0, "y": 0}},
+                "viewport": {"zoom": 0.3, "pan": {"x": 0, "y": 0}},
                 "boundingBox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
             },
             style={
@@ -633,6 +644,7 @@ app.layout = html.Div(
             },
             maxZoom=1.25,
             minZoom=0.1,
+            wheelSensitivity=0.1,
             stylesheet=[
                 {
                     "selector": "node",
@@ -648,7 +660,7 @@ app.layout = html.Div(
                         dcc.Input(
                             id="num-commits-input",
                             type="number",
-                            value=25,
+                            value=35,
                             style={
                                 "width": "13%",
                                 "border-style": "solid",
