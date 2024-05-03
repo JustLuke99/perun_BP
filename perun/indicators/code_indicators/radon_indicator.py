@@ -1,16 +1,12 @@
-import os
-from typing import TypedDict, List, Dict, Tuple
-from typing_extensions import Union
+from typing import TypedDict, List, Dict
+from typing import TypedDict, List, Dict
 
 import radon.complexity as radon_complexity
 import radon.raw as radon_raw
 from radon.metrics import (
-    h_visit,
-    h_visit_ast,
     mi_visit,
-    mi_parameters,
-    mi_compute,
 )
+from typing_extensions import Union
 
 from perun.indicators.abstract.base_indicator import BaseIndicator
 

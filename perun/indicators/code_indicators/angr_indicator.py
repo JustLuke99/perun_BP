@@ -1,6 +1,7 @@
-from perun.indicators.abstract.base_indicator import BaseIndicator
-from perun.collect.trace.optimizations.resources.manager import extract, Resources
 from typing import TypedDict, Dict
+
+from perun.collect.trace.optimizations.resources.manager import extract, Resources
+from perun.indicators.abstract.base_indicator import BaseIndicator
 
 
 class Data(TypedDict):

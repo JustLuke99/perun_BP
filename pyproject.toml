@@ -64,6 +64,24 @@ dependencies = [
 
     # Transitive dependencies that we need to limit for some reason
     "kiwisolver!=1.4.5", # matplotlib dep, 1.4.5 does not work when lazy-importing matplotlib
+
+    # Indicators
+    "radon==6.0.1",
+    "lizard==1.17.10",
+
+    # IndicatorManager
+    "python-magic==0.4.27",
+
+    # select
+    "dash==2.16.1",
+    "dash-bootstrap-components==1.5.0",
+    "dash-core-components==2.0.0",
+    "dash-cytoscape==1.0.0",
+    "dash-html-components==2.0.0",
+    "dash-table==5.0.0",
+
+
+    # visualization
 ]
 dynamic = ["version"]
 

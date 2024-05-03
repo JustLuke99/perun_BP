@@ -1,21 +1,13 @@
-# Standard Imports
 import os
 from typing import Iterator, List
-from itertools import chain
 
-# Third-Party Imports
-
-# Perun Imports
-from perun import vcs
-from perun.profile import helpers as profile_helpers
+from perun.logic.stats import get_stats_of
 from perun.profile.factory import Profile
 from perun.profile.helpers import ProfileInfo
 from perun.select.abstract_base_selection import AbstractBaseSelection
-from perun.utils.structs import MinorVersion
-from perun.logic.stats import get_stats_of
-from perun.select.whole_repository_selection import WholeRepositorySelection
-from perun.vcs.git_repository import GitRepository
 from perun.select.rule_kit.rule import RULE_CONFIG, Rule
+from perun.utils.structs import MinorVersion
+from perun.vcs.git_repository import GitRepository
 
 CONFIG = {
     "compare_data_filter_parsers": True,
@@ -29,7 +21,10 @@ CONFIG = {
             "from": "root",  # "root", "end"
         },
     },
-    "evaluate_rules": {"type": "average_weighted", "value": 0.00380},  # "any", "average", "average_weighted"
+    "evaluate_rules": {
+        "type": "average_weighted",
+        "value": 0.00380,
+    },  # "any", "average", "average_weighted"
 }
 
 

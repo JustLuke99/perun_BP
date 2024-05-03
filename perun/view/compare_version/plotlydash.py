@@ -3,13 +3,14 @@ import random
 import time
 
 import dash
+import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
 import git
-from git import Commit
 import matplotlib.colors as mcolors
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
-import dash_bootstrap_components as dbc
+from git import Commit
+
 from perun.select.better_repository_selection import BetterRepositorySelection
 from perun.vcs.git_repository import GitRepository
 

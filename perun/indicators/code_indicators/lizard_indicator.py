@@ -1,8 +1,9 @@
-from perun.indicators.abstract.base_indicator import BaseIndicator
+from typing import TypedDict, List, Dict
+
 import lizard
-import os
-from typing import TypedDict, List, Dict, Tuple
 from typing_extensions import Union
+
+from perun.indicators.abstract.base_indicator import BaseIndicator
 
 
 class Data(TypedDict):

@@ -1,15 +1,17 @@
 import importlib
 import os
-from perun.logic.stats import add_stats, get_stats_of
+
 import magic
+
+from perun.logic.stats import add_stats, get_stats_of
 from perun.utils.exceptions import VersionControlSystemException, StatsFileNotFoundException
 
 CONFIG = {
     "indicator_files": [
         "lizard_indicator.py",
         "radon_indicator.py",
-        # "ast_indicator.py",
-        # "angr_indicator.py",
+        "ast_indicator.py",
+        "angr_indicator.py",
     ],  #  "ast_indicator.py", "angr_indicator.py"
     "IGNORE_FOLDERS": ["venv", "idea"],
     "IGNORE_FILES": ["meson.build", "__init__.py"],

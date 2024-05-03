@@ -1,12 +1,6 @@
+import ast
+
 from perun.indicators.abstract.base_indicator import BaseIndicator
-import ast, json
-import networkx as nx
-from typing import TypedDict, List, Dict, Tuple, Union
-
-
-# class Data(TypedDict):
-#     body: List
-#     type_ignores: List
 
 
 class AstIndicator(BaseIndicator):
