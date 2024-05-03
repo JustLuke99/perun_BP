@@ -34,9 +34,6 @@ branches_commits = {}
 
 
 def build_branch_name(branch_name: str, commit: Commit) -> str:
-    if branch_name == "master~1" or branch_name == "master~383":
-        print("")
-
     if any(x in commit.message for x in ["Merge pull request", "Merge branch"]):
         if "Merge pull request" in commit.message:
             branch_name_tmp = commit.message.split("\n")[0].rsplit(" ", 1)[1]
@@ -78,7 +75,6 @@ def build_checkboxes(branch_name: str, commit: Commit, branch_color: str) -> Non
                                 "margin-left": "4px",
                                 "max-width": "10%",
                                 "font-size": "x-large",
-                                # "display": "inline",
                             },
                         ),
                     ],
@@ -108,11 +104,6 @@ def generate_commit_tree(max_commits: int) -> dict:
     commits = {}
     i = 0
     for commit in repo_commits[: max_commits if max_commits > 0 else 99999999]:
-        if (
-            i == len(repo_commits[: max_commits if max_commits > 0 else 99999999])
-            or i == len(repo_commits[: max_commits if max_commits > 0 else 99999999]) - 1
-        ):
-            print("")
         i += 1
         branch_name_full = repo.git.name_rev(commit.hexsha, name_only=True)
         branch_name = build_branch_name(branch_name_full, commit)
@@ -122,7 +113,7 @@ def generate_commit_tree(max_commits: int) -> dict:
                 GitRepository(repo_path).get_minor_version_info(commit.hexsha)
             )
         except Exception as e:
-            print(f"CHYBICKA: {e}")
+            print(f"ERROR: {e}")
             ds, confidence, diff_result = False, -1, None
 
         if confidence > max_confidence:
@@ -422,7 +413,7 @@ def finding_suitable_versions_to_compare(new_commits):
                 git_repo.get_minor_version_info(commit["hexsha"]),
             )
         except:
-            print("CHIBYCKA")
+            print("ERROR")
             ds = False
             confidence = -1
             diff_result = None

@@ -12,10 +12,10 @@ CONFIG = {
         "radon_indicator.py",
         "ast_indicator.py",
         "angr_indicator.py",
-    ],  #  "ast_indicator.py", "angr_indicator.py"
+    ],
     "IGNORE_FOLDERS": ["venv", "idea"],
     "IGNORE_FILES": ["meson.build", "__init__.py"],
-    "ROOT_FOLDER": os.getcwd(),  # + "/dash_cytoscape",
+    "ROOT_FOLDER": os.getcwd(),
 }
 
 
@@ -52,7 +52,6 @@ class IndicatorsManager:
     def _check_if_file_exists(self) -> None:
         """
         Checks if the file exists in the version control system and raises appropriate exceptions IF found.
-
         """
         try:
             if get_stats_of(

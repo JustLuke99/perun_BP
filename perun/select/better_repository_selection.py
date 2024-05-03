@@ -15,9 +15,9 @@ CONFIG = {
     "check_version_type": "last",
     "check_diff_thresholds": {
         "find_diff_in": "folders",  # "files", "folders", "project", "folders_rec"
-        "immersion": {  # this can be active only for "folders" and "folders_rec"
+        "nested": {  # this can be active only for "folders" and "folders_rec"
             "active": False,
-            "folder_immersion_level": 5,
+            "nested_max": 5,
             "from": "root",  # "root", "end"
         },
     },
@@ -37,7 +37,7 @@ class BetterRepositorySelection(AbstractBaseSelection):
 
     def should_check_version(
         self, target_version: MinorVersion | None = None
-    ) -> tuple[bool, float]:
+    ) -> tuple[bool, float, any]:
         """We check all versions always when checking by whole repository selector
 
         :param target_version: analysed target version
@@ -51,7 +51,7 @@ class BetterRepositorySelection(AbstractBaseSelection):
         ]
 
         if len(minor_versions) < 2:
-            return False, 0
+            return False, 0, []
 
         version_one, version_two = minor_versions[:2]
 
@@ -59,8 +59,7 @@ class BetterRepositorySelection(AbstractBaseSelection):
 
     def should_check_versions(
         self, target_version: MinorVersion, version_to_compare: MinorVersion
-    ) -> tuple[bool, float]:
-        # FIXME fix return
+    ) -> tuple[bool, float, any]:
         """We check all pairs of versions always when checking by whole repository selector
 
         :param target_version: analysed target version
@@ -68,9 +67,9 @@ class BetterRepositorySelection(AbstractBaseSelection):
         :return: always true with 100% confidence
         """
         diff = self._get_versions_diff(target_version, version_to_compare)
-        # TODO add confidence
+
         should_check = self._check_diff_thresholds(diff_data=diff)
-        # TODO add confidence
+
         return should_check
 
     def _check_diff_thresholds(self, diff_data):
@@ -82,29 +81,25 @@ class BetterRepositorySelection(AbstractBaseSelection):
                  and confidence is a float indicating the confidence level.
         """
 
-        def calculate_immersion_level(folder, max_slashes):
+        def calculate_nested_level(folder, max_slashes):
             """
-            Calculate the immersion level of a folder based on the number of slashes in its path.
+            Calculate the nested level of a folder based on the number of slashes in its path.
 
             :param folder: The folder path.
             :param max_slashes: The maximum number of slashes in any folder path.
-            :return: True if the folder's immersion level meets the threshold, False otherwise.
+            :return: True if the folder's nested level meets the threshold, False otherwise.
             """
-            immersion_config = CONFIG["check_diff_thresholds"]["immersion"]
+            nested_config = CONFIG["check_diff_thresholds"]["nested"]
 
-            if not immersion_config["active"]:
+            if not nested_config["active"]:
                 return True
 
-            if immersion_config["from"] == "root":
+            if nested_config["from"] == "root":
+                return True if folder.count("/") <= nested_config["nested_max"] else False
+            elif nested_config["from"] == "end":
                 return (
                     True
-                    if folder.count("/") <= immersion_config["folder_immersion_level"]
-                    else False
-                )
-            elif immersion_config["from"] == "end":
-                return (
-                    True
-                    if folder.count("/") >= max_slashes - immersion_config["folder_immersion_level"]
+                    if folder.count("/") >= max_slashes - nested_config["nested_max"]
                     else False
                 )
             else:
@@ -126,7 +121,6 @@ class BetterRepositorySelection(AbstractBaseSelection):
                     }
                 )
         elif CONFIG["check_diff_thresholds"]["find_diff_in"] == "project":
-            # TODO fix path
             folder_rec_diff = self._calculate_diff_of_folders_recursively(diff_data)
             diff_results = []
             for parser_name, data in folder_rec_diff["/"].items():
@@ -140,7 +134,7 @@ class BetterRepositorySelection(AbstractBaseSelection):
             )
             max_slashes = max(path.count("/") for path in folder_diff.keys())
             for folder, parsers in folder_diff.items():
-                if calculate_immersion_level(folder, max_slashes):
+                if calculate_nested_level(folder, max_slashes):
                     diff_results = []
                     for parser_name, data in parsers.items():
                         diff_results.append(self._check_diff(data, parser_name))
@@ -148,12 +142,6 @@ class BetterRepositorySelection(AbstractBaseSelection):
 
         else:
             raise Exception("find_diff_in is not defined.")
-
-        # for item in diff_result:
-        #     for parser in item["data"]:
-        #         for rule in parser:
-        #             if isinstance(rule, list):
-        #                 rule = rule[0]
 
         return self._evaluate_rules(diff_result)
 

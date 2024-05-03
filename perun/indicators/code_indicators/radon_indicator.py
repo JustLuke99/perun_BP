@@ -1,5 +1,4 @@
 from typing import TypedDict, List, Dict
-from typing import TypedDict, List, Dict
 
 import radon.complexity as radon_complexity
 import radon.raw as radon_raw
@@ -29,16 +28,12 @@ class RadonIndicator(BaseIndicator):
     supported_languages = ["py"]
 
     def parse(self, file_path: str) -> Data:
-        try:
-            f = open(
-                file_path,
-                "r",
-                encoding="utf-8",
-                errors="replace",
-            )
-        except UnicodeDecodeError as e:
-            print(e)
-            return
+        f = open(
+            file_path,
+            "r",
+            encoding="utf-8",
+            errors="replace",
+        )
 
         source_code = f.read()
         raw_metrics = radon_raw.analyze(source_code)
