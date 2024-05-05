@@ -12,9 +12,9 @@ RULE_CONFIG = {
             # "lines_of_code": [{"threshold_type": "value_from", "from": 2, "weight": 1}],
             # "cyclomatic_complexity": [{"threshold_type": "value_between", "from": 5, "to": 15}],
             # "number_of_functions": [{"threshold_type": "value_between", "from": 1, "to": 7}],
-            "comment_lines": [{"threshold_type": "value_from", "from": 3, "weight": 1}],
-            "comments_without_code": [{"threshold_type": "value_from", "from": 3, "weight": 1}],
-            "lines_of_code": [{"threshold_type": "value_from", "from": 3, "weight": -2}],
+            # "comment_lines": [{"threshold_type": "value_from", "from": 3, "weight": 1}],
+            # "comments_without_code": [{"threshold_type": "value_from", "from": 3, "weight": 1}],
+            "lines_of_code": [{"threshold_type": "value_from", "from": 0.8, "weight": 1}],
         },
     },
     "LizardParser": {

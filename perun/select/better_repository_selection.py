@@ -20,10 +20,10 @@ CONFIG = {
     "compare_data_filter_parser_names": ["RadonParser", "LizardParser"],
     "check_version_type": "last",
     "check_diff_thresholds": {
-        "find_diff_in": "folders",  # "files", "folders", "project", "folders_rec"
+        "find_diff_in": "files",  # "files", "folders", "project", "folders_rec"
         "nested": {  # this can be active only for "folders" and "folders_rec"
             "active": False,
-            "nested_max": 5,
+            "nested_max": 1,
             "from": "root",  # "root", "end"
         },
     },
@@ -195,8 +195,8 @@ class BetterRepositorySelection(AbstractBaseSelection):
         count = 0
         true_rules = 0
         for diff in diff_result:
-            if CONFIG["check_diff_thresholds"]["find_diff_in"] != "project":
-                diff = diff["data"]
+            # if CONFIG["check_diff_thresholds"]["find_diff_in"] != "project":
+            diff = diff["data"]
 
             diff_dict = get_dicts(diff)
             for rule in diff_dict:

@@ -660,6 +660,9 @@ def show_statistics(n_clicks):
         if item["true_count"] == 0:
             continue
 
+        if item["file_name"] == "":
+            continue
+
         background_color = get_green_color(max_true_rules, item["true_count"])
         parser_rules = {}
         for rule_item in item["data"]:

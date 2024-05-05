@@ -40,27 +40,33 @@ the flexibility of Perun's usage.
 """
 from __future__ import annotations
 
-# Standard Imports
-from typing import Optional, Any
 import os
 import sys
+# Standard Imports
+from typing import Optional, Any
 
 # Third-Party Imports
 import click
 
+import perun.collect
+import perun.fuzz.factory as fuzz
+import perun.postprocess
+import perun.profile.helpers as profiles
+import perun.view
 # Perun Imports
 from perun.cli_groups import check_cli, config_cli, run_cli, utils_cli
-from perun.logic import commands, pcs, config as perun_config
-from perun.utils import exceptions, log as perun_log
-from perun.utils.common import cli_kit, common_kit
-from perun.utils.external import commands as external_commands
+from perun.collect.trace.optimizations.structs import Parameters
 from perun.collect.trace.optimizations.structs import (
     Pipeline,
     Optimizations,
     CallGraphTypes,
 )
-from perun.collect.trace.optimizations.structs import Parameters
+from perun.indicators.indicator_manager import test_indicator_manager
+from perun.logic import commands, pcs, config as perun_config
 from perun.profile.factory import Profile
+from perun.select.better_repository_selection import select_test
+from perun.utils import exceptions, log as perun_log
+from perun.utils.common import cli_kit, common_kit
 from perun.utils.exceptions import (
     UnsupportedModuleException,
     NotPerunRepositoryException,
@@ -68,14 +74,8 @@ from perun.utils.exceptions import (
     MissingConfigSectionException,
     ExternalEditorErrorException,
 )
+from perun.utils.external import commands as external_commands
 from perun.utils.structs import Executable
-import perun.collect
-import perun.fuzz.factory as fuzz
-import perun.postprocess
-import perun.profile.helpers as profiles
-import perun.view
-from perun.indicators.indicator_manager import test_indicator_manager
-from perun.select.better_repository_selection import select_test
 from perun.vcs.git_repository import GitRepository
 from perun.vcs.vcs_kit import CleanState
 from perun.view.compare_version.plotlydash import run_plotlydash
