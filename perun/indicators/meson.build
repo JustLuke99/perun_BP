@@ -12,5 +12,4 @@ py3.install_sources(
 
 subdir('abstract')
 subdir('code_indicators')
-subdir('test_files')
 
