@@ -1,3 +1,9 @@
+"""
+Author: Kraus Lukáš
+Date: 5.5.2024
+"""
+
+
 import os
 from typing import Iterator, List
 
@@ -29,6 +35,18 @@ CONFIG = {
 
 
 class BetterRepositorySelection(AbstractBaseSelection):
+    """
+    Class for selecting versions based on the whole repository.
+
+    Attributes:
+    - git_repo (GitRepository): The Git repository.
+    - rule_class (Rule): The rule class.
+
+    Methods:
+    - should_check_version: Checks if the version should be checked.
+    - should_check_versions: Checks if the versions should be checked.
+    """
+
     __slots__ = ("git_repo", "rule_class")
 
     def __init__(self, repository_path: str = os.getcwd()) -> None:
@@ -447,6 +465,14 @@ class BetterRepositorySelection(AbstractBaseSelection):
         return True, 1
 
     def _find_all_by_file_path(data_list, file_path_to_find):
+        """
+        Find all items in the list of dictionaries with the specified file path.
+
+        :param data_list: List of dictionaries.
+        :param file_path_to_find: File path to find.
+
+        :return: List of dictionaries with the specified file path.
+        """
         return [item for item in data_list if file_path_to_find in item.get("file_path")]
 
     def find_nearest(self, target_version: MinorVersion) -> MinorVersion:

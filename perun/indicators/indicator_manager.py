@@ -1,3 +1,8 @@
+"""
+Author: Kraus Lukáš
+Date: 5.5.2024
+"""
+
 import importlib
 import os
 
@@ -24,8 +29,13 @@ class IndicatorsManager:
     Manages a collection of code indicators and facilitates parsing of code files in a directory.
 
     Attributes:
-    - indicators (list): A list of dictionaries, each containing a indicator class and its supported languages.
+    - indicators (list): A list of dictionaries, each containing indicator class and its supported languages.
     - supported_languages (list): A list of all supported programming languages by the loaded indicators.
+    - data (list): A list of dictionaries, each containing the parsed data of a code file.
+    - vcs_version (str): Hash of the control system version.
+
+    Methods:
+    - get_data_from_indicators: Parses code files in the specified root directory using loaded indicators.
     """
 
     __slots__ = [
@@ -218,6 +228,16 @@ class IndicatorsManager:
         return bool(file_extension)
 
     def _is_executable(self, file_path: str) -> bool:
+        """
+        Checks if the file at the given path is an executable.
+
+        Parameters:
+        - file_path (str): The path to the file.
+
+        Returns:
+        - bool: True if the file is an executable, False otherwise.
+        """
+
         def get_file_type(file_path: str):
             mime = magic.Magic()
             file_type = mime.from_file(file_path)

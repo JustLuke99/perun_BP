@@ -1,3 +1,8 @@
+"""
+Author: Kraus Lukáš
+Date: 5.5.2024
+"""
+
 import os
 import random
 import time
@@ -34,6 +39,14 @@ branches_commits = {}
 
 
 def build_branch_name(branch_name: str, commit: Commit) -> str:
+    """
+    Build branch name from commit message.
+
+    :param branch_name: The branch name.
+    :param commit: The commit.
+
+    :return: The branch name.
+    """
     if any(x in commit.message for x in ["Merge pull request", "Merge branch"]):
         if "Merge pull request" in commit.message:
             branch_name_tmp = commit.message.split("\n")[0].rsplit(" ", 1)[1]
@@ -62,6 +75,15 @@ def build_branch_name(branch_name: str, commit: Commit) -> str:
 
 
 def build_checkboxes(branch_name: str, commit: Commit, branch_color: str) -> None:
+    """
+    Build checkboxes for branches and authors.
+
+    :param branch_name: The branch name.
+    :param commit: The commit.
+    :param branch_color: The branch color.
+
+    :return: None
+    """
     if branch_name not in [item["value"] for item in branches_checkbox]:
         branches_checkbox.append(
             {
@@ -100,6 +122,13 @@ def build_checkboxes(branch_name: str, commit: Commit, branch_color: str) -> Non
 
 
 def generate_commit_tree(max_commits: int) -> dict:
+    """
+    When the visualization is initialized, it processes commits.
+
+    :param max_commits: The maximum number of commits to process.
+
+    :return: The dictionary with commits.
+    """
     global max_confidence
     commits = {}
     i = 0
@@ -143,6 +172,11 @@ def generate_commit_tree(max_commits: int) -> dict:
     priority=1,
 )
 def show_hide_statistic_button(_) -> dict:
+    """
+    Show or hide the statistic button.
+
+    :param _: The tap node data.
+    """
     global selected_nodes
     time.sleep(0.1)
     if len(selected_nodes) != 2:
@@ -157,6 +191,11 @@ def show_hide_statistic_button(_) -> dict:
     priority=1,
 )
 def show_hide_find_button(_) -> dict:
+    """
+    Show or hide the find button.
+
+    :param _: The tap node data.
+    """
     global selected_nodes
     time.sleep(0.1)
     if len(selected_nodes) != 1:
@@ -171,6 +210,13 @@ def show_hide_find_button(_) -> dict:
     priority=2,
 )
 def show_hide_confidence_button(n_clicks: int) -> str:
+    """
+    Show or hide the confidence button.
+
+    :param n_clicks: The number of clicks.
+
+    :return: The button text.
+    """
     if n_clicks % 2 == 0:
         return "Show confidence"
     else:
@@ -181,6 +227,13 @@ def show_hide_confidence_button(n_clicks: int) -> str:
     Output("statistic-button", "children"), Input("statistic-button", "n_clicks"), priority=2
 )
 def show_hide_statistics_button(n_clicks: int) -> str:
+    """
+    Show or hide the statistics button.
+
+    :param n_clicks: The number of clicks.
+
+    :return: The button text.
+    """
     if n_clicks % 2 == 0:
         return "Show statistics"
     else:
@@ -188,6 +241,11 @@ def show_hide_statistics_button(n_clicks: int) -> str:
 
 
 def generate_hex_color() -> str:
+    """
+    Generate a random hex color.
+
+    :return: The hex color.
+    """
     return "#{:02x}{:02x}{:02x}".format(
         random.randint(60, 190), random.randint(60, 190), random.randint(60, 190)
     )
@@ -207,6 +265,14 @@ def generate_hex_color() -> str:
     priority=99,
 )
 def delete_graph(*_, **__):
+    """
+    Delete the graph.
+
+    :param _: The inputs.
+    :param __: The kwargs.
+
+    :return: The empty list.
+    """
     return []
 
 
@@ -218,6 +284,13 @@ def delete_graph(*_, **__):
     priority=2,
 )
 def display_selected_commit(tapNodeData):
+    """
+    Display selected commit.
+
+    :param tapNodeData: The tap node data.
+
+    :return: Empty string
+    """
     if tapNodeData and (node_id := tapNodeData["id"]):
         if node_id in selected_nodes:
             selected_nodes.remove(node_id)
@@ -228,6 +301,16 @@ def display_selected_commit(tapNodeData):
 
 
 def commit_filtering(commits, selected_branches, selected_authors, num_commits):
+    """
+    Filter commits.
+
+    :param commits: The commits.
+    :param selected_branches: The selected branches.
+    :param selected_authors: The selected authors.
+    :param num_commits: The number of commits.
+
+    :return: The filtered commits.
+    """
     global max_confidence
     if selected_branches:
         commits = {
@@ -262,6 +345,13 @@ def commit_filtering(commits, selected_branches, selected_authors, num_commits):
 
 
 def interpolate_color(value):
+    """
+    Interpolate color.
+
+    :param value: The value.
+
+    :return: The hex color.
+    """
     global max_confidence
     max_value = max_confidence if max_confidence > 0 else 0.00000001
     red = (max_value - value) / max_value * 255
@@ -293,6 +383,21 @@ def update_graph(
     *args,
     **kwargs,
 ) -> (list, list):
+    """
+    Update the graph.
+
+    :param num_commits: The number of commits.
+    :param selected_branches: The selected branches.
+    :param selected_authors: The selected authors.
+    :param _: The tap node data.
+    :param show_hide_confidence_n_clicks: The number of clicks.
+    :param find_button_n_clicks: The number of clicks.
+    :param args: The args.
+    :param kwargs: The kwargs.
+
+    :return: The elements.
+    """
+
     time.sleep(0.1)
 
     global LOADED_COMMITS, max_confidence
@@ -329,6 +434,16 @@ def update_graph(
 
 
 def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence):
+    """
+    Create nodes.
+
+    :param new_commits: The new commits.
+    :param xd_branches: The branches.
+    :param new_branch_positions: The new branch positions.
+    :param show_confidence: The show confidence.
+
+    :return: The nodes.
+    """
     new_nodes = []
     brach_x_position = {}
 
@@ -376,6 +491,15 @@ def create_nodes(new_commits, xd_branches, new_branch_positions, show_confidence
 
 
 def create_edges(new_commits, new_commit_hashes, xd_branches):
+    """
+    Create edges.
+
+    :param new_commits: The new commits.
+    :param new_commit_hashes: The new commit hashes.
+    :param xd_branches: The branches.
+
+    :return: The edges.
+    """
     return [
         {
             "data": {"source": parent, "target": commit["hexsha"]},
@@ -395,6 +519,13 @@ def create_edges(new_commits, new_commit_hashes, xd_branches):
 
 
 def finding_suitable_versions_to_compare(new_commits):
+    """
+    Finding suitable versions to compare.
+
+    :param new_commits: The new commits.
+
+    :return: The suitable versions to compare.
+    """
     global max_confidence, repo_path
     git_repo = GitRepository(repo_path)
     skip = True
@@ -443,6 +574,13 @@ def finding_suitable_versions_to_compare(new_commits):
     priority=2,
 )
 def update_button_text(n_clicks, _):
+    """
+    Update button text.
+
+    :param n_clicks: The number of clicks.
+
+    :return: The button text.
+    """
     if n_clicks % 2 == 0:
         return "Click here to find a suitable versions to compare"
     else:
@@ -454,6 +592,13 @@ def update_button_text(n_clicks, _):
     Input("statistic-button", "n_clicks"),
 )
 def show_statistics(n_clicks):
+    """
+    Show statistics for compared versions.
+
+    :param n_clicks: The number of clicks.
+
+    :return: The statistics.
+    """
     global selected_nodes, repo_path
 
     if n_clicks % 2 == 0:
@@ -604,6 +749,14 @@ def show_statistics(n_clicks):
 
 
 def get_green_color(max_true_rules, true_count):
+    """
+    Get green color.
+
+    :param max_true_rules: The maximum number of true rules.
+    :param true_count: The number of true rules.
+
+    :return: The green color (in hex).
+    """
     color = 1 - true_count / max_true_rules * 0.5
     return mcolors.rgb2hex((color, 1, color))
 
@@ -614,6 +767,13 @@ def get_green_color(max_true_rules, true_count):
     priority=-10,
 )
 def update_button_text(n_clicks, _):
+    """
+    Update button text.
+
+    :param n_clicks: The number of clicks.
+
+    :return: The button text.
+    """
     if n_clicks % 2 == 0:
         return ""
     else:
@@ -777,6 +937,13 @@ app.layout = html.Div(
 
 
 def run_plotlydash(load_commits: int):
+    """
+    Run the Plotly Dash application.
+
+    :param load_commits: The number of commits to load.
+
+    :return: None
+    """
     global LOADED_COMMITS
     if not LOADED_COMMITS:
         LOADED_COMMITS = generate_commit_tree(load_commits)

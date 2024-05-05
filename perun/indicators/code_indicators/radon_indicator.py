@@ -1,3 +1,8 @@
+"""
+Author: Kraus Lukáš
+Date: 5.5.2024
+"""
+
 from typing import TypedDict, List, Dict
 
 import radon.complexity as radon_complexity
@@ -11,6 +16,10 @@ from perun.indicators.abstract.base_indicator import BaseIndicator
 
 
 class Data(TypedDict):
+    """
+    The type of the parsed data.
+    """
+
     lines_of_code: int
     logical_lines_of_code: int
     source_lines_of_code: int
@@ -25,9 +34,28 @@ class Data(TypedDict):
 
 
 class RadonIndicator(BaseIndicator):
+    """
+    Class for parsing source code with Radon.
+
+    Attributes:
+    - supported_languages (List[str]): The list of supported languages.
+
+    Methods:
+    - parse: Parses the source code.
+    """
+
     supported_languages = ["py"]
 
     def parse(self, file_path: str) -> Data:
+        """
+        Parse the source code with Radon.
+
+        Parameters:
+        - file_path (str): The path to the source code file.
+
+        Returns:
+        - Data: The parsed data.
+        """
         f = open(
             file_path,
             "r",
