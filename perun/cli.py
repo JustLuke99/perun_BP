@@ -64,7 +64,6 @@ from perun.collect.trace.optimizations.structs import (
 from perun.indicators.indicator_manager import test_indicator_manager
 from perun.logic import commands, pcs, config as perun_config
 from perun.profile.factory import Profile
-from perun.select.better_repository_selection import select_test
 from perun.utils import exceptions, log as perun_log
 from perun.utils.common import cli_kit, common_kit
 from perun.utils.exceptions import (
@@ -1173,20 +1172,6 @@ def fuzz_cmd(cmd: str, **kwargs: Any) -> None:
 
 
 @cli.command()
-def test_indicator():
-    test_indicator_manager("xd")
-
-
-@cli.command()
-def test_sel():
-    git_repo = GitRepository(os.getcwd())
-    head_hash = git_repo.get_minor_head()
-    commits = [x for x in git_repo.walk_minor_versions(head_hash)]
-    for commit in commits:
-        select_test(commit)
-
-
-@cli.command()
 @click.option("--load-commits", default=0, type=int, help="Maximum number of commits to load")
 def run_visualization(load_commits=0):
     run_plotlydash(load_commits)
@@ -1227,8 +1212,6 @@ cli.add_command(check_cli.check_group)
 cli.add_command(config_cli.config)
 cli.add_command(run_cli.run)
 cli.add_command(utils_cli.utils_group)
-cli.add_command(test_indicator)
-cli.add_command(test_sel)
 cli.add_command(analyze_repo)
 cli.add_command(run_visualization)
 
