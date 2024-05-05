@@ -21,9 +21,9 @@ CONFIG = {
     "check_version_type": "last",
     "check_diff_thresholds": {
         "find_diff_in": "files",  # "files", "folders", "project", "folders_rec"
-        "nested": {  # this can be active only for "folders" and "folders_rec"
+        "nested_max": {  # this can be active only for "folders" and "folders_rec"
             "active": False,
-            "nested_max": 1,
+            "folder_nested_max_level": 1,
             "from": "root",  # "root", "end"
         },
     },
@@ -107,17 +107,19 @@ class BetterRepositorySelection(AbstractBaseSelection):
             :param max_slashes: The maximum number of slashes in any folder path.
             :return: True if the folder's nested level meets the threshold, False otherwise.
             """
-            nested_config = CONFIG["check_diff_thresholds"]["nested"]
+            nested_config = CONFIG["check_diff_thresholds"]["nested_max"]
 
             if not nested_config["active"]:
                 return True
 
             if nested_config["from"] == "root":
-                return True if folder.count("/") <= nested_config["nested_max"] else False
+                return (
+                    True if folder.count("/") <= nested_config["folder_nested_max_level"] else False
+                )
             elif nested_config["from"] == "end":
                 return (
                     True
-                    if folder.count("/") >= max_slashes - nested_config["nested_max"]
+                    if folder.count("/") >= max_slashes - nested_config["folder_nested_max_level"]
                     else False
                 )
             else:
